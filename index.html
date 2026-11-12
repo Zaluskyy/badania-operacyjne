@@ -3,113 +3,263 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pełna Analiza CPM (Wyrównywanie zasobów, Symulacje)</title>
+    <title>Pełna Analiza CPM (Dark Mode & Zabezpieczenia)</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 15px; background-color: #f4f6f9; color: #333; }
-        .container { max-width: 1300px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        h2 { margin-top: 0; color: #1a252f; margin-bottom: 15px; font-size: 22px; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px;}
-        h3 { color: #2980b9; margin-top: 30px; font-size: 18px; border-bottom: 1px solid #ecf0f1; padding-bottom: 5px;}
-        .instructions { font-size: 13px; color: #7f8c8d; margin-bottom: 15px; line-height: 1.5; }
+        /* Zmienne CSS (Domyślnie Ciemny Motyw) */
+        :root {
+            --bg-body: #121212;
+            --bg-container: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --border-color: #333;
+            --th-bg: #222;
+            --th-text: #fff;
+            --input-bg: transparent;
+            --input-focus: rgba(52, 152, 219, 0.15);
+            --input-focus-border: #3498db;
+            --readonly-bg: #252525;
+            --disabled-bg: #151515;
+            --disabled-text: #555;
+            --critical-bg: rgba(231, 76, 60, 0.15);
+            --critical-text: #ff6b6b;
+            --btn-add: #27ae60;
+            --btn-add-hover: #219653;
+            --btn-gen: #3498db;
+            --btn-gen-hover: #2980b9;
+            --card-bg: #1a1a1a;
+            --sim-bg: #151515;
+            --sim-input-bg: #222;
+            --gantt-th: #222;
+            --gantt-td-border: #333;
+            --gantt-task-bg: #252525;
+            --gantt-slack: repeating-linear-gradient(45deg, #252525, #252525 5px, #444 5px, #444 10px);
+            --gantt-delayed: rgba(149, 165, 166, 0.2);
+            --hist-bg: #222;
+            --hist-border: #444;
+        }
 
-        .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ced4da; }
-        table { width: 100%; min-width: 950px; border-collapse: collapse; background-color: #fff; }
-        th, td { border: 1px solid #ced4da; text-align: center; padding: 0; position: relative; height: 44px; }
-        th { background-color: #2c3e50; color: white; padding: 10px 5px; font-size: 13px; }
-        input { width: 100%; height: 100%; box-sizing: border-box; border: none; padding: 8px 5px; font-size: 15px; text-align: center; outline: none; background: transparent;}
-        input:focus { background-color: #e8f4fd; box-shadow: inset 0 0 0 2px #3498db; }
-        
-        .readonly-cell { background-color: #e9ecef; color: #6c757d; font-size: 14px; display: flex; align-items: center; justify-content: center; height: 100%; }
-        .disabled-row input { color: #adb5bd; text-decoration: line-through; background-color: #f8f9fa; }
-        .disabled-row .readonly-cell { color: #adb5bd; text-decoration: none; }
-        
-        .toggle-btn { position: absolute; left: 5px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #e74c3c; font-weight: bold; font-size: 11px; user-select: none; background: #ffe0e0; padding: 4px 6px; border-radius: 3px; z-index: 2; }
-        .disabled-row .toggle-btn { color: #27ae60; background: #e0f8e9; }
-        .critical-row { background-color: #ffe0e0 !important; }
-        .critical-row input, .critical-row .readonly-cell { color: #c0392b; font-weight: bold; }
+        /* Zmienne CSS (Jasny Motyw) */
+        body.light-mode {
+            --bg-body: #f4f6f9;
+            --bg-container: #fff;
+            --text-main: #333;
+            --text-muted: #7f8c8d;
+            --border-color: #ced4da;
+            --th-bg: #2c3e50;
+            --th-text: #fff;
+            --input-bg: transparent;
+            --input-focus: #e8f4fd;
+            --input-focus-border: #3498db;
+            --readonly-bg: #e9ecef;
+            --disabled-bg: #f8f9fa;
+            --disabled-text: #adb5bd;
+            --critical-bg: #ffe0e0;
+            --critical-text: #c0392b;
+            --card-bg: #fff;
+            --sim-bg: #fdfefe;
+            --sim-input-bg: #fff;
+            --gantt-th: #34495e;
+            --gantt-td-border: #ecf0f1;
+            --gantt-task-bg: #ecf0f1;
+            --gantt-slack: repeating-linear-gradient(45deg, #ecf0f1, #ecf0f1 5px, #bdc3c7 5px, #bdc3c7 10px);
+            --gantt-delayed: rgba(149, 165, 166, 0.3);
+            --hist-bg: #fdfefe;
+            --hist-border: #34495e;
+        }
 
-        .simulation-params { display: flex; flex-direction: column; gap: 10px; background: #fdfefe; padding: 15px; border: 1px solid #e1e8ed; border-radius: 5px; margin-bottom: 20px; font-size: 14px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 15px; background-color: var(--bg-body); color: var(--text-main); transition: background-color 0.3s, color 0.3s; }
+        .container { max-width: 1300px; margin: 0 auto; background: var(--bg-container); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: relative; }
+        h2 { margin-top: 0; color: var(--text-main); margin-bottom: 15px; font-size: 22px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px;}
+        h3 { color: #3498db; margin-top: 30px; font-size: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;}
+        .instructions { font-size: 13px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5; }
+
+        .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); }
+        table { width: 100%; min-width: 950px; border-collapse: collapse; background-color: var(--bg-container); }
+        th, td { border: 1px solid var(--border-color); text-align: center; padding: 0; position: relative; height: 44px; color: var(--text-main); }
+        th { background-color: var(--th-bg); color: var(--th-text); padding: 10px 5px; font-size: 13px; }
+        input { width: 100%; height: 100%; box-sizing: border-box; border: none; padding: 8px 5px; font-size: 15px; text-align: center; outline: none; background: var(--input-bg); color: var(--text-main); }
+        input:focus { background-color: var(--input-focus); box-shadow: inset 0 0 0 2px var(--input-focus-border); }
+        
+        .readonly-cell { background-color: var(--readonly-bg); font-size: 14px; display: flex; align-items: center; justify-content: center; height: 100%; }
+        .disabled-row input { color: var(--disabled-text); text-decoration: line-through; background-color: var(--disabled-bg); }
+        .disabled-row .readonly-cell { color: var(--disabled-text); text-decoration: none; background-color: var(--disabled-bg); }
+        
+        .toggle-btn { position: absolute; left: 5px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #e74c3c; font-weight: bold; font-size: 11px; user-select: none; background: rgba(231, 76, 60, 0.2); padding: 4px 6px; border-radius: 3px; z-index: 2; }
+        .disabled-row .toggle-btn { color: #27ae60; background: rgba(39, 174, 96, 0.2); }
+        .critical-row { background-color: var(--critical-bg) !important; }
+        .critical-row input, .critical-row .readonly-cell { color: var(--critical-text); font-weight: bold; }
+
+        .simulation-params { display: flex; flex-direction: column; gap: 10px; background: var(--sim-bg); padding: 15px; border: 1px solid var(--border-color); border-radius: 5px; margin-bottom: 20px; font-size: 14px; }
         .sim-row { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
-        .simulation-params input { width: 50px; height: 26px; border: 1px solid #bdc3c7; border-radius: 3px; padding: 2px; box-shadow: none; background: #fff; font-weight: bold; color: #2980b9;}
+        .simulation-params input { width: 50px; height: 26px; border: 1px solid var(--border-color); border-radius: 3px; padding: 2px; box-shadow: none; background: var(--sim-input-bg); font-weight: bold; color: #3498db;}
 
         .actions { display: flex; gap: 10px; margin-bottom: 20px; }
         button { padding: 14px 20px; font-size: 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 5px; transition: 0.2s; color: white; flex-grow: 1; }
-        .btn-add { background-color: #27ae60; }
-        .btn-add:hover { background-color: #219653; }
-        .btn-generate { background-color: #3498db; }
-        .btn-generate:hover { background-color: #2980b9; }
+        .btn-add { background-color: var(--btn-add); }
+        .btn-add:hover { background-color: var(--btn-add-hover); }
+        .btn-generate { background-color: var(--btn-gen); }
+        .btn-generate:hover { background-color: var(--btn-gen-hover); }
 
-        #mynetwork { width: 100%; height: 500px; border: 1px solid #e1e8ed; border-radius: 5px; background-color: #ffffff; touch-action: pan-y pinch-zoom; margin-bottom: 20px;}
+        #mynetwork { width: 100%; height: 500px; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--card-bg); touch-action: pan-y pinch-zoom; margin-bottom: 20px;}
 
-        .analysis-card { background: #fff; padding: 20px; border-radius: 5px; border: 1px solid #e1e8ed; margin-bottom: 20px; line-height: 1.6; }
+        .analysis-card { background: var(--card-bg); padding: 20px; border-radius: 5px; border: 1px solid var(--border-color); margin-bottom: 20px; line-height: 1.6; }
         .analysis-card ul { margin-top: 5px; padding-left: 20px; margin-bottom: 5px; }
-        .highlight { font-weight: bold; color: #c0392b; }
+        .highlight { font-weight: bold; color: #e74c3c; }
         
         .gantt-container { overflow-x: auto; margin-top: 10px; margin-bottom: 30px; }
         .gantt-table { width: auto; min-width: 100%; border-collapse: collapse; font-size: 12px; }
-        .gantt-table th, .gantt-table td { border: 1px solid #ecf0f1; width: 30px; min-width: 30px; max-width: 30px; height: 25px; padding: 0; text-align: center; }
-        .gantt-table th { background: #34495e; color: #fff; font-weight: normal; font-size: 11px;}
-        .gantt-table .task-name { width: 60px; min-width: 60px; font-weight: bold; background: #ecf0f1; color: #2c3e50; text-align: left; padding-left: 10px;}
-        .gantt-bar { background: #3498db; height: 100%; width: 100%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); }
+        .gantt-table th, .gantt-table td { border: 1px solid var(--gantt-td-border); width: 30px; min-width: 30px; max-width: 30px; height: 25px; padding: 0; text-align: center; }
+        .gantt-table th { background: var(--gantt-th); color: var(--th-text); font-weight: normal; font-size: 11px;}
+        .gantt-table .task-name { width: 60px; min-width: 60px; font-weight: bold; background: var(--gantt-task-bg); color: var(--text-main); text-align: left; padding-left: 10px;}
+        .gantt-bar { background: #3498db; height: 100%; width: 100%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2); }
         .gantt-bar.critical { background: #e74c3c; }
-        .gantt-bar.slack { background: repeating-linear-gradient(45deg, #ecf0f1, #ecf0f1 5px, #bdc3c7 5px, #bdc3c7 10px); opacity: 0.6; }
-        .gantt-bar.delayed { background: #95a5a6; opacity: 0.3; }
+        .gantt-bar.slack { background: var(--gantt-slack); opacity: 0.6; }
+        .gantt-bar.delayed { background: var(--gantt-delayed); }
         
-        .histogram-row td { background: #fdfefe; font-weight: bold; color: #2c3e50; border-top: 2px solid #34495e; border-bottom: 2px solid #34495e; }
-        .histogram-alert { color: #e74c3c; }
+        .histogram-row td { background: var(--hist-bg); font-weight: bold; color: var(--text-main); border-top: 2px solid var(--hist-border); border-bottom: 2px solid var(--hist-border); }
+        .histogram-alert { color: #e74c3c !important; }
         
-        @media (max-width: 768px) { .actions { flex-direction: column; } #mynetwork { height: 350px; } }
+        /* Toggle Switch dla motywu */
+        .theme-toggle-container { position: absolute; top: 20px; right: 20px; z-index: 10; display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: bold; color: var(--text-muted);}
+        .theme-switch { position: relative; display: inline-block; width: 44px; height: 22px; }
+        .theme-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .3s; border-radius: 22px; border: 1px solid #555;}
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: #ccc; border-color: #aaa;}
+        input:checked + .slider:before { transform: translateX(22px); background-color: #333;}
+        
+        /* Ekrany zabezpieczające */
+        #login-overlay { position: fixed; inset: 0; background-color: #121212; display: flex; align-items: center; justify-content: center; z-index: 10000; }
+        #login-overlay input { width: 280px; padding: 10px; font-size: 32px; text-align: center; border: none; border-bottom: 2px solid #333; background: transparent; color: #fff; outline: none; letter-spacing: 10px;}
+        #login-overlay input:focus { border-bottom-color: #3498db; }
+        
+        #blackout-overlay { position: fixed; inset: 0; background-color: #000; z-index: 20000; display: none; }
+        
+        #app-content { display: none; }
+
+        @media (max-width: 768px) { 
+            .actions { flex-direction: column; } 
+            #mynetwork { height: 350px; } 
+            .theme-toggle-container { display: none !important; }
+            #login-overlay { display: none !important; }
+            #blackout-overlay { display: none !important; }
+            #app-content { display: block !important; }
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Kompleksowa Analiza Sieci Projektowej (CPM)</h2>
-    
-    <div class="simulation-params">
-        <div class="sim-row">
-            <b>Pkt II E:</b> Wydłużenie o <input type="number" id="sim-ext-val" value="2"> dni → zmiana proj. o <input type="number" id="sim-ext-res" value="1"> dni.
-            <span style="margin-left:20px;"><b>Pkt II F:</b> Skrócenie o <input type="number" id="sim-shr-val" value="2"> dni → zmiana proj. o <input type="number" id="sim-shr-res" value="1"> dni.</span>
-        </div>
-        <div class="sim-row" style="border-top: 1px dashed #ecf0f1; padding-top: 10px;">
-            <b>Pkt IV (Budżet na skracanie):</b> Maksymalnie <input type="number" id="sim-budget" value="10"> jednostek pracowniczych do wydania.
-        </div>
-        <div class="sim-row" style="border-top: 1px dashed #ecf0f1; padding-top: 10px;">
-            <b>Pkt V (Limit dzienny):</b> Maksymalnie <input type="number" id="sim-limit" value="4"> pracowników na budowie każdego dnia.
-        </div>
-    </div>
+<!-- Hasło przed wejściem -->
+<div id="login-overlay">
+    <input type="password" id="pass-input" placeholder="***" autocomplete="off">
+</div>
 
-    <div class="table-responsive">
-        <table id="cpmTable">
-            <thead>
-                <tr>
-                    <th style="width: 10%;">Operacja</th>
-                    <th style="width: 12%;">Poprzednik</th>
-                    <th style="width: 8%;">Czas</th>
-                    <th style="width: 8%;">Czas min.</th>
-                    <th style="width: 8%;">Pracownicy</th>
-                    <th style="width: 9%;">NWR</th>
-                    <th style="width: 9%;">NWZ</th>
-                    <th style="width: 9%;">NPR</th>
-                    <th style="width: 9%;">NPZ</th>
-                    <th style="width: 9%;">ZC</th>
-                    <th style="width: 9%;">ZS</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-        </table>
-    </div>
+<!-- Kurtyna Anti-Cheat -->
+<div id="blackout-overlay"></div>
 
-    <div class="actions">
-        <button class="btn-add" onclick="addRow()">+ Dodaj operację</button>
-        <button class="btn-generate" onclick="runAnalysis()">Analizuj i Rysuj Wszystko</button>
-    </div>
+<!-- Główna aplikacja -->
+<div id="app-content">
+    <div class="container">
+        
+        <div class="theme-toggle-container">
+            Ciemny
+            <label class="theme-switch">
+                <input type="checkbox" id="theme-switch-checkbox">
+                <span class="slider"></span>
+            </label>
+            Jasny
+        </div>
 
-    <div id="mynetwork"></div>
-    <div id="analysisResults"></div>
+        <h2>Kompleksowa Analiza Sieci Projektowej (CPM)</h2>
+        
+        <div class="simulation-params">
+            <div class="sim-row">
+                <b>Pkt II E:</b> Wydłużenie o <input type="number" id="sim-ext-val" value="2"> dni → zmiana proj. o <input type="number" id="sim-ext-res" value="1"> dni.
+                <span style="margin-left:10px;"><b>Pkt II F:</b> Skrócenie o <input type="number" id="sim-shr-val" value="2"> dni → zmiana proj. o <input type="number" id="sim-shr-res" value="1"> dni.</span>
+            </div>
+            <div class="sim-row" style="border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                <b>Pkt IV (Budżet na skracanie):</b> Maksymalnie <input type="number" id="sim-budget" value="10"> jednostek pracowniczych do wydania.
+            </div>
+            <div class="sim-row" style="border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                <b>Pkt V (Limit dzienny):</b> Maksymalnie <input type="number" id="sim-limit" value="4"> pracowników na budowie każdego dnia.
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="cpmTable">
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">Operacja</th>
+                        <th style="width: 12%;">Poprzednik</th>
+                        <th style="width: 8%;">Czas</th>
+                        <th style="width: 8%;">Czas min.</th>
+                        <th style="width: 8%;">Pracownicy</th>
+                        <th style="width: 9%;">NWR</th>
+                        <th style="width: 9%;">NWZ</th>
+                        <th style="width: 9%;">NPR</th>
+                        <th style="width: 9%;">NPZ</th>
+                        <th style="width: 9%;">ZC</th>
+                        <th style="width: 9%;">ZS</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+
+        <div class="actions">
+            <button class="btn-add" onclick="addRow()">+ Dodaj operację</button>
+            <button class="btn-generate" onclick="runAnalysis()">Analizuj i Rysuj Wszystko</button>
+        </div>
+
+        <div id="mynetwork"></div>
+        <div id="analysisResults"></div>
+    </div>
 </div>
 
 <script>
+    // === SYSTEM LOGOWANIA I ANTI-CHEAT ===
+    // Wykrywanie urządzenia mobilnego
+    let isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    let isLoggedIn = isMobile ? true : false; // Na telefonie od razu "zalogowany"
+    
+    document.getElementById('pass-input').addEventListener('input', function(e) {
+        if(e.target.value === 'spierdalaj') {
+            isLoggedIn = true;
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+        }
+    });
+
+    document.addEventListener('mouseleave', () => {
+        if (isLoggedIn && !isMobile) {
+            document.getElementById('blackout-overlay').style.display = 'block';
+        }
+    });
+
+    document.addEventListener('mouseenter', (e) => {
+        if (!isLoggedIn || isMobile) return;
+        
+        // Zabezpieczenie: jeśli wchodzimy z prawej krawędzi ekranu
+        const isRightEdge = e.clientX >= window.innerWidth - 30;
+        // Zabezpieczenie: jeśli wchodzimy z góry, ale z prawej 1/3 szerokości ekranu
+        const isTopRightThird = e.clientY <= 30 && e.clientX >= (window.innerWidth * 0.66);
+        
+        if (!isRightEdge && !isTopRightThird) {
+            document.getElementById('blackout-overlay').style.display = 'none';
+        }
+    });
+
+    // === ZMIANA MOTYWU ===
+    document.getElementById('theme-switch-checkbox').addEventListener('change', function() {
+        if(this.checked) document.body.classList.add('light-mode');
+        else document.body.classList.remove('light-mode');
+        
+        if(isLoggedIn) runAnalysis(true); 
+    });
+
+
+    // === LOGIKA CPM ===
     let initialData = [
         { id: 'a', preds: '', time: '', mintime: '', workers: '' },
         { id: 'b', preds: '', time: '', mintime: '', workers: '' },
@@ -121,9 +271,16 @@
     let nextCharCode = 'g'.charCodeAt(0);
 
     window.onload = () => {
+        if (isMobile) {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+        }
         const tbody = document.getElementById('tableBody');
         initialData.forEach(row => appendRowHtml(tbody, row.id, row.preds, row.time, row.mintime, row.workers));
         updateTabIndexes();
+        if (!isMobile) {
+            document.getElementById('pass-input').focus();
+        }
     };
 
     function appendRowHtml(tbody, id, preds, time, mintime, workers) {
@@ -195,7 +352,6 @@
         return result;
     }
 
-    // GŁÓWNY SILNIK CPM
     function solveCPM(activitiesInput) {
         if(activitiesInput.length === 0) return null;
         let activities = JSON.parse(JSON.stringify(activitiesInput));
@@ -303,7 +459,7 @@
         return { TW, TP, T1: projectDuration, edges, topoOrder, actsData, paths, activities };
     }
 
-    function runAnalysis() {
+    function runAnalysis(isThemeChange = false) {
         let activeRows = [];
         let activitiesInput = [];
         
@@ -327,8 +483,13 @@
             }
         });
 
+        if(activitiesInput.length === 0) {
+            if(!isThemeChange) alert("Wprowadź poprawne dane!"); 
+            return; 
+        }
+
         let res = solveCPM(activitiesInput);
-        if(!res) { alert("Wprowadź dane!"); return; }
+        if(!res) return;
 
         activeRows.forEach(row => {
             let data = res.actsData[row.id];
@@ -346,30 +507,34 @@
     }
 
     function drawNetworkGraph(res) {
+        let isLight = document.body.classList.contains('light-mode');
+        let nodeFill = isLight ? '#fff' : '#1e1e1e';
+        let textColor = isLight ? 'black' : '#e0e0e0';
+
         let nodeIdMap = {};
         res.topoOrder.forEach((oldId, index) => nodeIdMap[oldId] = index + 1);
         let visNodes = res.topoOrder.map(oldId => {
             let id = nodeIdMap[oldId], tw = res.TW[oldId], tp = res.TP[oldId], z = tp - tw, isCrit = (z === 0);
-            let color = isCrit ? '#e74c3c' : '#2c3e50';
+            let color = isCrit ? '#e74c3c' : (isLight ? '#2c3e50' : '#85c1e9');
             let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">
-                <circle cx="40" cy="40" r="38" stroke="${color}" stroke-width="${isCrit ? '3' : '2'}" fill="#fff" />
+                <circle cx="40" cy="40" r="38" stroke="${color}" stroke-width="${isCrit ? '3' : '2'}" fill="${nodeFill}" />
                 <line x1="13.2" y1="13.2" x2="66.8" y2="66.8" stroke="${color}" stroke-width="${isCrit ? '2' : '1'}" />
                 <line x1="66.8" y1="13.2" x2="13.2" y2="66.8" stroke="${color}" stroke-width="${isCrit ? '2' : '1'}" />
                 <text x="40" y="26" font-size="14" font-family="sans-serif" font-weight="bold" text-anchor="middle" fill="${color}">${id}</text>
-                <text x="18" y="45" font-size="14" font-family="sans-serif" text-anchor="middle" fill="black">${tw}</text>
-                <text x="62" y="45" font-size="14" font-family="sans-serif" text-anchor="middle" fill="black">${tp}</text>
-                <text x="40" y="70" font-size="14" font-family="sans-serif" text-anchor="middle" fill="black">${z}</text>
+                <text x="18" y="45" font-size="14" font-family="sans-serif" text-anchor="middle" fill="${textColor}">${tw}</text>
+                <text x="62" y="45" font-size="14" font-family="sans-serif" text-anchor="middle" fill="${textColor}">${tp}</text>
+                <text x="40" y="70" font-size="14" font-family="sans-serif" text-anchor="middle" fill="${textColor}">${z}</text>
             </svg>`;
             return { id: id, shape: 'image', image: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.trim()), size: 40 };
         });
 
         let visEdges = res.edges.map(e => {
             let isCrit = (res.TW[e.from] === res.TP[e.from]) && (res.TW[e.to] === res.TP[e.to]) && (res.TW[e.from] + e.dur === res.TP[e.to]);
-            let edgeCol = isCrit ? '#e74c3c' : '#7f8c8d';
+            let edgeCol = isCrit ? '#e74c3c' : (isLight ? '#7f8c8d' : '#85929e');
             return {
                 from: nodeIdMap[e.from], to: nodeIdMap[e.to],
                 label: e.isDummy ? "" : `${e.label}(${e.dur})`,
-                font: { align: 'top', color: edgeCol, size: 16, background: 'rgba(255,255,255,0.8)' },
+                font: { align: 'top', color: edgeCol, size: 16, background: isLight ? 'rgba(255,255,255,0.8)' : 'rgba(30,30,30,0.8)' },
                 color: { color: edgeCol, highlight: '#c0392b' },
                 width: isCrit ? 3 : 1.5, dashes: e.isDummy ? [8, 8] : false, arrows: 'to',
                 smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.3 }
@@ -387,7 +552,6 @@
         let criticalActs = Object.keys(res.actsData).filter(k => res.actsData[k].zc === 0).join(', ');
         let nonCriticalSlacks = Object.keys(res.actsData).filter(k => res.actsData[k].zc > 0).map(k => `Operacja <b>${k}</b> (ZC = ${res.actsData[k].zc}, ZS = ${res.actsData[k].zs})`).join('; ');
         
-        // --- PKT II (E, F) ---
         let extVal = parseInt(document.getElementById('sim-ext-val').value) || 2;
         let extRes = parseInt(document.getElementById('sim-ext-res').value) || 1;
         let actsExt = [];
@@ -398,7 +562,6 @@
         let actsShr = [];
         actsInput.forEach(a => { let clone = JSON.parse(JSON.stringify(actsInput)); clone.find(c => c.id === a.id).duration = Math.max(0, a.duration - shrVal); if(T1 - solveCPM(clone).T1 === shrRes) actsShr.push(a.id); });
 
-        // BUDOWANIE HTML DLA SEKCJI II
         let html = `
             <h3>II. Przy nominalnych czasach trwania:</h3>
             <div class="analysis-card">
@@ -412,15 +575,14 @@
             </div>
             
             <h3>II. G & H. Harmonogram (Wczesne Starty) i Wykres Zatrudnienia</h3>
-            <div class="instructions">Ułożenie według Najwcześniejszego Terminu Rozpoczęcia (NWR). Czerwony = Ścieżka Krytyczna. Paski na dole = Zapas swobodny. (Oś Y odwrócona, 'a' na dole).</div>
+            <div class="instructions">Ułożenie według Najwcześniejszego Terminu Rozpoczęcia (NWR). Czerwony = Ścieżka Krytyczna. Paski na dole = Zapas swobodny.</div>
             <div class="gantt-container">${generateGantt(res, T1, 'early')}</div>
             
             <h3>II. I. Harmonogram (Późne Starty)</h3>
-            <div class="instructions">Ułożenie według Najpóźniejszego Terminu Rozpoczęcia (NPR). (Oś Y odwrócona, 'a' na dole).</div>
+            <div class="instructions">Ułożenie według Najpóźniejszego Terminu Rozpoczęcia (NPR).</div>
             <div class="gantt-container">${generateGantt(res, T1, 'late')}</div>
         `;
 
-        // --- PKT III (A, B, C) ---
         let minActsInput = JSON.parse(JSON.stringify(actsInput));
         minActsInput.forEach(a => a.duration = a.minTime);
         let resMin = solveCPM(minActsInput);
@@ -448,7 +610,6 @@
             currentT = solveCPM(simActs).T1;
         }
 
-        // --- PKT IV (Skracanie wg budżetu) ---
         let budgetInput = parseInt(document.getElementById('sim-budget').value) || 0;
         let remainingBudget = budgetInput;
         let simIVActs = JSON.parse(JSON.stringify(actsInput));
@@ -479,15 +640,13 @@
         let totalUsedIV = budgetInput - remainingBudget;
         let ivDetails = Object.keys(ivUsage).filter(k => ivUsage[k] > 0).map(k => `<b>${k}</b>: ${ivUsage[k]} j.`).join(', ');
 
-        // --- PKT V (Wyrównywanie zasobów / Resource Leveling) ---
         let maxWorkersLimit = parseInt(document.getElementById('sim-limit').value) || 4;
         let vFinished = new Set();
-        let vInProgress = []; // {id, rem, work}
+        let vInProgress = []; 
         let vTime = 0;
         let vStartTimes = {}; let vEndTimes = {};
         let vActs = JSON.parse(JSON.stringify(actsInput));
         
-        // Zabezpieczenie przed zadaniami, które same w sobie przekraczają limit
         let impossible = vActs.filter(a => a.workers > maxWorkersLimit);
         let vHtml = "";
         let leveledSchedule = {};
@@ -503,9 +662,7 @@
                 });
                 
                 let currentWorkers = vInProgress.reduce((sum, t) => sum + t.work, 0);
-                
                 let eligible = vActs.filter(a => !vFinished.has(a.id) && !vInProgress.find(p=>p.id===a.id) && a.preds.every(p => vFinished.has(p)));
-                // Heurystyka: Zaczynamy te, które mają najmniejszy zapas wg oryginalnego CPM (priorytet ścieżki krytycznej)
                 eligible.sort((a, b) => res.actsData[a.id].ls - res.actsData[b.id].ls);
                 
                 for(let task of eligible) {
@@ -524,20 +681,17 @@
                 }
             }
             let T4 = Math.max(...Object.values(vEndTimes));
-            
             vActs.forEach(a => { leveledSchedule[a.id] = { nwr: vStartTimes[a.id], nwz: vEndTimes[a.id], zc: res.actsData[a.id].zc, workers: a.workers }; });
-            
             let vStartsOutput = vActs.map(a => `<b>${a.id}</b>: dzień ${vStartTimes[a.id]}`).join(', ');
             
             vHtml = `
                 <p><b>Czas przedsięwzięcia (T4):</b> <span class="highlight">${T4}</span> dni.</p>
                 <p><b>Chwile rozpoczynania operacji:</b> ${vStartsOutput}.</p>
-                <div class="instructions">Szary kolor wiersza przed operacją oznacza, że została ona celowo opóźniona przez algorytm ze względu na brak wolnych pracowników danego dnia.</div>
+                <div class="instructions">Szary kolor wiersza oznacza, że zadanie zostało opóźnione ze względu na brak wolnych pracowników.</div>
                 <div class="gantt-container">${generateCustomGantt(leveledSchedule, T4, res.actsData, maxWorkersLimit)}</div>
             `;
         }
 
-        // DOKLEJENIE SEKCJI III, IV, V DO HTML
         html += `
             <h3>III. Przy minimalnych czasach trwania:</h3>
             <div class="analysis-card">
@@ -600,7 +754,7 @@
 
         acts.forEach(id => {
             let a = schedule[id];
-            let origNWR = originalActsData[id].nwr; // Żeby pokazać celowe opóźnienie algorytmem
+            let origNWR = originalActsData[id].nwr;
             html += `<tr><td class="task-name">${id}</td>`;
             for(let day=0; day<T; day++) {
                 if(day >= a.nwr && day < a.nwz) {
