@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generator Sieci Łukowej (AoA) CPM</title>
+    <!-- Biblioteka do rysowania grafów -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        h2 { margin-top: 0; color: #1a252f; }
+        .input-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .input-group label {
+            width: 220px;
+            font-weight: 600;
+        }
+        .input-group input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 15px;
+        }
+        button {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: #1a252f; }
+        #mynetwork {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #e1e8ed;
+            margin-top: 25px;
+            border-radius: 5px;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Kreator Sieci Łukowej (AoA) z węzłami krzyżowymi</h2>
+    
+    <div class="input-group">
+        <label>Operacje:</label>
+        <input type="text" id="ops" value="a, b, c, d, e, f, g">
+    </div>
+    <div class="input-group">
+        <label>Poprzednicy (- to brak):</label>
+        <input type="text" id="preds" value="-, a, b, a, -, d;e, e">
+    </div>
+    <div class="input-group">
+        <label>Czas trwania:</label>
+        <input type="text" id="durations" value="5, 2, 3, 3, 7, 4, 6">
+    </div>
+
+    <button onclick="drawNetwork()">Generuj Sieć Łukową</button>
+
+    <div id="mynetwork"></div>
+</div>
+
+<script>
+    function drawNetwork() {
+        const ops = document.getElementById('ops').value.split(',').map(s => s.trim());
+        const predsInput = document.getElementById('preds').value.split(',').map(s => s.trim());
+        const durations = document.getElementById('durations').value.split(',').map(s => parseInt(s.trim()));
+
+        if(ops.length !== predsInput.length || ops.length !== durations.length) {
+            alert("Błąd: Liczba elementów w polach się nie zgadza!");
+            return;
+        }
+
+        let activities = ops.map((op, i) => ({
+            id: op,
+            duration: durations[i],
+            preds: predsInput[i] === '-' ? [] : predsInput[i].split(';').map(s => s.trim())
+        }));
+
+        // 1. Zmienne do budowy grafu zdarzeń (AoA)
+        let eventCounter = 1;
+        let actEndEvent = {}; 
+        activities.forEach(a => actEndEvent[a.id] = eventCounter++);
+
+        // 2. Grupowanie operacji posiadających IDENTYCZNYCH poprzedników
+        let groups = {};
+        activities.forEach(a => {
+            let predStr = [...a.preds].sort().join(',');
+            if (!groups[predStr]) groups[predStr] = { preds: [...a.preds], acts: [] };
+            groups[predStr].acts.push(a.id);
+        });
+
+        // Sprawdzanie do ilu grup zależy dany poprzednik (do optymalizacji operacji pozornych)
+        let predUsageCount = {};
+        Object.values(groups).forEach(g => {
+            g.preds.forEach(p => predUsageCount[p] = (predUsageCount[p] || 0) + 1);
+        });
+
+        let edges = [];
+        let actStartEvent = {};
+
+        // 3. Łączenie węzłów i generowanie operacji pozornych
+        Object.values(groups).forEach(g => {
+            let startEvent;
+            if (g.preds.length === 0) {
+                startEvent = 0; // Węzeł początkowy
+            } else if (g.preds.length === 1) {
+                startEvent = actEndEvent[g.preds[0]]; // Tylko jeden poprzednik = łączymy bezpośrednio
+            } else {
+                // Wiele poprzedników - szukamy czy jest jakiś używany tylko dla tej grupy
+                let singleUsePred = g.preds.find(p => predUsageCount[p] === 1);
+                if (singleUsePred) {
+                    startEvent = actEndEvent[singleUsePred];
+                    g.preds.forEach(p => {
+                        if (p !== singleUsePred) {
+                            edges.push({ from: actEndEvent[p], to: startEvent, duration: 0, isDummy: true, label: "" });
+                        }
+                    });
+                } else {
+                    startEvent = eventCounter++;
+                    g.preds.forEach(p => {
+                        edges.push({ from: actEndEvent[p], to: startEvent, duration: 0, isDummy: true, label: "" });
+                    });
+                }
+            }
+            g.acts.forEach(actId => actStartEvent[actId] = startEvent);
+        });
+
+        // 4. Zbieranie "luźnych" zakończeń do jednego węzła końcowego projektu
+        let isPredecessor = {};
+        Object.values(groups).forEach(g => g.preds.forEach(p => isPredecessor[p] = true));
+        let endProjectEvent = eventCounter++;
+        activities.forEach(a => {
+            if (!isPredecessor[a.id]) actEndEvent[a.id] = endProjectEvent;
+        });
+
+        // Tworzenie faktycznych strzałek (operacji)
+        activities.forEach(a => {
+            edges.push({ from: actStartEvent[a.id], to: actEndEvent[a.id], duration: a.duration, isDummy: false, label: a.id });
+        });
+
+        let nodesSet = new Set();
+        edges.forEach(e => { nodesSet.add(e.from); nodesSet.add(e.to); });
+        let nodesArray = Array.from(nodesSet).sort((a,b) => a-b);
+
+        // 5. Wyliczanie terminów zdarzeń (TW - Najwcześniejszy, TP - Najpóźniejszy)
+        // Sortowanie topologiczne
+        let inDegree = {}; let adj = {};
+        nodesArray.forEach(n => { inDegree[n] = 0; adj[n] = []; });
+        edges.forEach(e => {
+            inDegree[e.to] = (inDegree[e.to] || 0) + 1;
+            adj[e.from].push({to: e.to, dur: e.duration});
+        });
+
+        let queue = [];
+        nodesArray.forEach(n => { if (inDegree[n] === 0) queue.push(n); });
+        let topoOrder = [];
+        while(queue.length > 0) {
+            let u = queue.shift();
+            topoOrder.push(u);
+            adj[u].forEach(edge => {
+                inDegree[edge.to]--;
+                if(inDegree[edge.to] === 0) queue.push(edge.to);
+            });
+        }
+
+        // Liczenie TW (Od lewej do prawej)
+        let TW = {};
+        nodesArray.forEach(n => TW[n] = 0);
+        topoOrder.forEach(u => {
+            adj[u].forEach(edge => {
+                if (TW[u] + edge.dur > TW[edge.to]) TW[edge.to] = TW[u] + edge.dur;
+            });
+        });
+
+        let projectDuration = Math.max(...Object.values(TW));
+
+        // Liczenie TP (Od prawej do lewej)
+        let TP = {};
+        nodesArray.forEach(n => TP[n] = projectDuration);
+        let reverseTopo = [...topoOrder].reverse();
+        let revAdj = {};
+        nodesArray.forEach(n => { revAdj[n] = []; });
+        edges.forEach(e => revAdj[e.to].push({from: e.from, dur: e.duration}));
+        
+        reverseTopo.forEach(u => {
+            revAdj[u].forEach(edge => {
+                if (TP[u] - edge.dur < TP[edge.from]) TP[edge.from] = TP[u] - edge.dur;
+            });
+        });
+
+        // 6. Przygotowanie danych dla silnika Vis.js
+        let nodeIdMap = {};
+        topoOrder.forEach((oldId, index) => nodeIdMap[oldId] = index + 1);
+
+        let visNodes = [];
+        Object.keys(nodeIdMap).forEach(oldId => {
+            let id = nodeIdMap[oldId];
+            let tw = TW[oldId];
+            let tp = TP[oldId];
+            let z = tp - tw;
+            let isCritical = (z === 0);
+            let color = isCritical ? '#e74c3c' : '#2c3e50';
+
+            // Rysowanie węzła jako "kółko z Xem" przy użyciu SVG w locie
+            let svg = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">
+                    <circle cx="40" cy="40" r="38" stroke="${color}" stroke-width="${isCritical ? '3' : '2'}" fill="#fff" />
+                    <line x1="13.2" y1="13.2" x2="66.8" y2="66.8" stroke="${color}" stroke-width="${isCritical ? '2' : '1'}" />
+                    <line x1="66.8" y1="13.2" x2="13.2" y2="66.8" stroke="${color}" stroke-width="${isCritical ? '2' : '1'}" />
+                    <text x="40" y="26" font-size="14" font-family="sans-serif" font-weight="bold" text-anchor="middle" fill="${color}">${id}</text>
+                    <text x="18" y="45" font-size="14" font-family="sans-serif" text-anchor="middle" fill="black">${tw}</text>
+                    <text x="62" y="45" font-size="14" font-family="sans-serif" text-anchor="middle" fill="black">${tp}</text>
+                    <text x="40" y="70" font-size="14" font-family="sans-serif" text-anchor="middle" fill="black">${z}</text>
+                </svg>
+            `;
+            let url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.trim());
+            
+            visNodes.push({ id: id, shape: 'image', image: url, size: 40 });
+        });
+
+        let visEdges = [];
+        edges.forEach(e => {
+            let fromId = nodeIdMap[e.from];
+            let toId = nodeIdMap[e.to];
+            
+            // Warunek przynależności strzałki do ścieżki krytycznej
+            let isCritical = (TW[e.from] === TP[e.from]) && (TW[e.to] === TP[e.to]) && (TW[e.from] + e.duration === TP[e.to]);
+            let edgeColor = isCritical ? '#e74c3c' : '#7f8c8d';
+
+            visEdges.push({
+                from: fromId,
+                to: toId,
+                label: e.isDummy ? "" : `${e.label}(${e.duration})`,
+                font: { align: 'top', color: edgeColor, size: 16, background: 'rgba(255,255,255,0.8)' },
+                color: { color: edgeColor, highlight: '#c0392b' },
+                width: isCritical ? 3 : 1.5,
+                dashes: e.isDummy ? [8, 8] : false, // Przerywana linia dla zadań pozornych
+                arrows: 'to',
+                smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.3 }
+            });
+        });
+
+        const data = { nodes: new vis.DataSet(visNodes), edges: new vis.DataSet(visEdges) };
+        const container = document.getElementById('mynetwork');
+        const options = {
+            layout: {
+                hierarchical: { direction: 'LR', sortMethod: 'directed', levelSeparation: 220, nodeSpacing: 100 }
+            },
+            physics: false
+        };
+
+        new vis.Network(container, data, options);
+    }
+
+    window.onload = drawNetwork;
+</script>
+
+</body>
+</html>
