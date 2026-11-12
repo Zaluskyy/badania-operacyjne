@@ -3,31 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pełna Analiza CPM (Sieć AoA, Gantt, Symulacje)</title>
+    <title>Pełna Analiza CPM (Wyrównywanie zasobów, Symulacje)</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 15px;
-            background-color: #f4f6f9;
-            color: #333;
-        }
-        .container {
-            max-width: 1300px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 15px; background-color: #f4f6f9; color: #333; }
+        .container { max-width: 1300px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         h2 { margin-top: 0; color: #1a252f; margin-bottom: 15px; font-size: 22px; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px;}
         h3 { color: #2980b9; margin-top: 30px; font-size: 18px; border-bottom: 1px solid #ecf0f1; padding-bottom: 5px;}
-        
         .instructions { font-size: 13px; color: #7f8c8d; margin-bottom: 15px; line-height: 1.5; }
 
         .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ced4da; }
-        table { width: 100%; min-width: 850px; border-collapse: collapse; background-color: #fff; }
+        table { width: 100%; min-width: 950px; border-collapse: collapse; background-color: #fff; }
         th, td { border: 1px solid #ced4da; text-align: center; padding: 0; position: relative; height: 44px; }
         th { background-color: #2c3e50; color: white; padding: 10px 5px; font-size: 13px; }
         input { width: 100%; height: 100%; box-sizing: border-box; border: none; padding: 8px 5px; font-size: 15px; text-align: center; outline: none; background: transparent;}
@@ -39,12 +25,12 @@
         
         .toggle-btn { position: absolute; left: 5px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #e74c3c; font-weight: bold; font-size: 11px; user-select: none; background: #ffe0e0; padding: 4px 6px; border-radius: 3px; z-index: 2; }
         .disabled-row .toggle-btn { color: #27ae60; background: #e0f8e9; }
-        
         .critical-row { background-color: #ffe0e0 !important; }
         .critical-row input, .critical-row .readonly-cell { color: #c0392b; font-weight: bold; }
 
-        .simulation-params { display: flex; flex-wrap: wrap; gap: 15px; background: #fdfefe; padding: 15px; border: 1px solid #e1e8ed; border-radius: 5px; margin-bottom: 20px; font-size: 14px; align-items: center;}
-        .simulation-params input { width: 40px; height: 26px; border: 1px solid #bdc3c7; border-radius: 3px; padding: 2px; box-shadow: none; background: #fff;}
+        .simulation-params { display: flex; flex-direction: column; gap: 10px; background: #fdfefe; padding: 15px; border: 1px solid #e1e8ed; border-radius: 5px; margin-bottom: 20px; font-size: 14px; }
+        .sim-row { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+        .simulation-params input { width: 50px; height: 26px; border: 1px solid #bdc3c7; border-radius: 3px; padding: 2px; box-shadow: none; background: #fff; font-weight: bold; color: #2980b9;}
 
         .actions { display: flex; gap: 10px; margin-bottom: 20px; }
         button { padding: 14px 20px; font-size: 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 5px; transition: 0.2s; color: white; flex-grow: 1; }
@@ -55,13 +41,11 @@
 
         #mynetwork { width: 100%; height: 500px; border: 1px solid #e1e8ed; border-radius: 5px; background-color: #ffffff; touch-action: pan-y pinch-zoom; margin-bottom: 20px;}
 
-        /* Stylizacja wyników analizy */
         .analysis-card { background: #fff; padding: 20px; border-radius: 5px; border: 1px solid #e1e8ed; margin-bottom: 20px; line-height: 1.6; }
-        .analysis-card ul { margin-top: 5px; padding-left: 20px; }
+        .analysis-card ul { margin-top: 5px; padding-left: 20px; margin-bottom: 5px; }
         .highlight { font-weight: bold; color: #c0392b; }
         
-        /* Wykresy Gantta */
-        .gantt-container { overflow-x: auto; margin-top: 10px; }
+        .gantt-container { overflow-x: auto; margin-top: 10px; margin-bottom: 30px; }
         .gantt-table { width: auto; min-width: 100%; border-collapse: collapse; font-size: 12px; }
         .gantt-table th, .gantt-table td { border: 1px solid #ecf0f1; width: 30px; min-width: 30px; max-width: 30px; height: 25px; padding: 0; text-align: center; }
         .gantt-table th { background: #34495e; color: #fff; font-weight: normal; font-size: 11px;}
@@ -69,8 +53,10 @@
         .gantt-bar { background: #3498db; height: 100%; width: 100%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); }
         .gantt-bar.critical { background: #e74c3c; }
         .gantt-bar.slack { background: repeating-linear-gradient(45deg, #ecf0f1, #ecf0f1 5px, #bdc3c7 5px, #bdc3c7 10px); opacity: 0.6; }
+        .gantt-bar.delayed { background: #95a5a6; opacity: 0.3; }
         
-        .histogram-row td { background: #fdfefe; font-weight: bold; color: #2c3e50; border-top: 2px solid #34495e; }
+        .histogram-row td { background: #fdfefe; font-weight: bold; color: #2c3e50; border-top: 2px solid #34495e; border-bottom: 2px solid #34495e; }
+        .histogram-alert { color: #e74c3c; }
         
         @media (max-width: 768px) { .actions { flex-direction: column; } #mynetwork { height: 350px; } }
     </style>
@@ -79,20 +65,29 @@
 
 <div class="container">
     <h2>Kompleksowa Analiza Sieci Projektowej (CPM)</h2>
-    <div class="instructions">
-        <b>Tab</b> przenosi kursor w dół kolumny.<br>
-        Separator poprzedników: dowolny (np. <b>d, e</b> lub <b>d;e</b>). Puste pole lub <b>-</b> oznacza brak. Wielkość liter ignorowana.<br>
-        Kolumna <b>Pracownicy</b> jest wymagana do narysowania histogramu (punkt H).
+    
+    <div class="simulation-params">
+        <div class="sim-row">
+            <b>Pkt II E:</b> Wydłużenie o <input type="number" id="sim-ext-val" value="2"> dni → zmiana proj. o <input type="number" id="sim-ext-res" value="1"> dni.
+            <span style="margin-left:20px;"><b>Pkt II F:</b> Skrócenie o <input type="number" id="sim-shr-val" value="2"> dni → zmiana proj. o <input type="number" id="sim-shr-res" value="1"> dni.</span>
+        </div>
+        <div class="sim-row" style="border-top: 1px dashed #ecf0f1; padding-top: 10px;">
+            <b>Pkt IV (Budżet na skracanie):</b> Maksymalnie <input type="number" id="sim-budget" value="10"> jednostek pracowniczych do wydania.
+        </div>
+        <div class="sim-row" style="border-top: 1px dashed #ecf0f1; padding-top: 10px;">
+            <b>Pkt V (Limit dzienny):</b> Maksymalnie <input type="number" id="sim-limit" value="4"> pracowników na budowie każdego dnia.
+        </div>
     </div>
 
     <div class="table-responsive">
         <table id="cpmTable">
             <thead>
                 <tr>
-                    <th style="width: 12%;">Operacja</th>
+                    <th style="width: 10%;">Operacja</th>
                     <th style="width: 12%;">Poprzednik</th>
-                    <th style="width: 9%;">Czas</th>
-                    <th style="width: 9%;">Pracownicy</th>
+                    <th style="width: 8%;">Czas</th>
+                    <th style="width: 8%;">Czas min.</th>
+                    <th style="width: 8%;">Pracownicy</th>
                     <th style="width: 9%;">NWR</th>
                     <th style="width: 9%;">NWZ</th>
                     <th style="width: 9%;">NPR</th>
@@ -105,47 +100,33 @@
         </table>
     </div>
 
-    <!-- Parametry symulacji (Punkty E i F) -->
-    <div class="simulation-params">
-        <div>
-            <b>Pkt E (Wydłużenie):</b> Wydłużenie operacji o <input type="number" id="sim-ext-val" value="2"> dni, wydłuża projekt o <input type="number" id="sim-ext-res" value="1"> dzień.
-        </div>
-        <div>
-            <b>Pkt F (Skrócenie):</b> Skrócenie operacji o <input type="number" id="sim-shr-val" value="2"> dni, skraca projekt o <input type="number" id="sim-shr-res" value="1"> dzień.
-        </div>
-    </div>
-
     <div class="actions">
         <button class="btn-add" onclick="addRow()">+ Dodaj operację</button>
-        <button class="btn-generate" onclick="runAnalysis()">Analizuj i Rysuj</button>
+        <button class="btn-generate" onclick="runAnalysis()">Analizuj i Rysuj Wszystko</button>
     </div>
 
-    <!-- Kontener na graf (Punkt I ze zdjęcia) -->
     <div id="mynetwork"></div>
-
-    <!-- Kontener na szczegółowe wyniki (Punkty II. A - I) -->
     <div id="analysisResults"></div>
 </div>
 
 <script>
     let initialData = [
-        { id: 'a', preds: '', time: '', workers: '' },
-        { id: 'b', preds: '', time: '', workers: '' },
-        { id: 'c', preds: '', time: '', workers: '' },
-        { id: 'd', preds: '', time: '', workers: '' },
-        { id: 'e', preds: '', time: '', workers: '' },
-        { id: 'f', preds: '', time: '', workers: '' },
-        { id: 'g', preds: '', time: '', workers: '' }
+        { id: 'a', preds: '', time: '', mintime: '', workers: '' },
+        { id: 'b', preds: '', time: '', mintime: '', workers: '' },
+        { id: 'c', preds: '', time: '', mintime: '', workers: '' },
+        { id: 'd', preds: '', time: '', mintime: '', workers: '' },
+        { id: 'e', preds: '', time: '', mintime: '', workers: '' },
+        { id: 'f', preds: '', time: '', mintime: '', workers: '' }
     ];
-    let nextCharCode = 'h'.charCodeAt(0);
+    let nextCharCode = 'g'.charCodeAt(0);
 
     window.onload = () => {
         const tbody = document.getElementById('tableBody');
-        initialData.forEach(row => appendRowHtml(tbody, row.id, row.preds, row.time, row.workers));
+        initialData.forEach(row => appendRowHtml(tbody, row.id, row.preds, row.time, row.mintime, row.workers));
         updateTabIndexes();
     };
 
-    function appendRowHtml(tbody, id, preds, time, workers) {
+    function appendRowHtml(tbody, id, preds, time, mintime, workers) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
@@ -154,6 +135,7 @@
             </td>
             <td><input type="text" class="inp-preds" value="${preds}" oninput="clearResults()"></td>
             <td><input type="text" class="inp-time" value="${time}" inputmode="numeric" oninput="clearResults()"></td>
+            <td><input type="text" class="inp-mintime" value="${mintime}" inputmode="numeric" oninput="clearResults()"></td>
             <td><input type="text" class="inp-workers" value="${workers}" inputmode="numeric" oninput="clearResults()"></td>
             <td><div class="readonly-cell out-nwr"></div></td>
             <td><div class="readonly-cell out-nwz"></div></td>
@@ -166,7 +148,7 @@
     }
 
     function addRow() {
-        appendRowHtml(document.getElementById('tableBody'), String.fromCharCode(nextCharCode++), '', '', '');
+        appendRowHtml(document.getElementById('tableBody'), String.fromCharCode(nextCharCode++), '', '', '', '');
         updateTabIndexes();
         clearResults();
     }
@@ -178,7 +160,8 @@
             tr.querySelector('.inp-id').setAttribute('tabindex', i + 1);
             tr.querySelector('.inp-preds').setAttribute('tabindex', N + i + 1);
             tr.querySelector('.inp-time').setAttribute('tabindex', 2 * N + i + 1);
-            tr.querySelector('.inp-workers').setAttribute('tabindex', 3 * N + i + 1);
+            tr.querySelector('.inp-mintime').setAttribute('tabindex', 3 * N + i + 1);
+            tr.querySelector('.inp-workers').setAttribute('tabindex', 4 * N + i + 1);
         });
     }
 
@@ -197,11 +180,25 @@
         document.getElementById('analysisResults').innerHTML = '';
     }
 
-    // GŁÓWNY SILNIK OBLICZENIOWY CPM (Wyizolowany by robić symulacje w tle)
+    function getSubsets(arr, maxSize) {
+        let result = [];
+        function combine(start, combo) {
+            if (combo.length > 0) result.push([...combo]);
+            if (combo.length === maxSize) return;
+            for (let i = start; i < arr.length; i++) {
+                combo.push(arr[i]);
+                combine(i + 1, combo);
+                combo.pop();
+            }
+        }
+        combine(0, []);
+        return result;
+    }
+
+    // GŁÓWNY SILNIK CPM
     function solveCPM(activitiesInput) {
         if(activitiesInput.length === 0) return null;
-        
-        let activities = JSON.parse(JSON.stringify(activitiesInput)); // Deep copy
+        let activities = JSON.parse(JSON.stringify(activitiesInput));
         let eventCounter = 1;
         let actEndEvent = {}; 
         activities.forEach(a => actEndEvent[a.id] = eventCounter++);
@@ -289,7 +286,6 @@
             };
         });
 
-        // Wyszukiwanie wszystkich ścieżek
         let paths = [];
         function dfs(u, currentPath, currentLen) {
             if(u === endProjectEvent) {
@@ -298,16 +294,13 @@
             }
             adj[u].forEach(e => {
                 let nextPath = [...currentPath];
-                if(!e.isDummy) nextPath.push(e.label); // Pomijamy nazwy operacji pozornych w wypisie ścieżek dla czystości
+                if(!e.isDummy) nextPath.push(e.label);
                 dfs(e.to, nextPath, currentLen + e.dur);
             });
         }
         dfs(0, [], 0);
 
-        return { 
-            TW, TP, T1: projectDuration, edges, topoOrder, 
-            actsData, paths, activities 
-        };
+        return { TW, TP, T1: projectDuration, edges, topoOrder, actsData, paths, activities };
     }
 
     function runAnalysis() {
@@ -319,12 +312,17 @@
                 let id = tr.querySelector('.inp-id').value.trim().toLowerCase();
                 let predsRaw = tr.querySelector('.inp-preds').value.trim().toLowerCase();
                 let timeRaw = tr.querySelector('.inp-time').value.trim();
+                let mintimeRaw = tr.querySelector('.inp-mintime').value.trim();
                 let workRaw = tr.querySelector('.inp-workers').value.trim();
                 
                 if(id === '' || timeRaw === '') return; 
                 let preds = (predsRaw !== '' && predsRaw !== '-') ? predsRaw.split(/[;,]+/).map(s => s.trim()).filter(s => s !== '') : [];
                 
-                activitiesInput.push({ id: id, duration: parseInt(timeRaw) || 0, workers: parseInt(workRaw) || 0, preds: preds });
+                let time = parseInt(timeRaw) || 0;
+                let minTime = mintimeRaw !== '' ? parseInt(mintimeRaw) : time; 
+                let workers = parseInt(workRaw) || 0;
+
+                activitiesInput.push({ id: id, duration: time, minTime: minTime, workers: workers, preds: preds });
                 activeRows.push({id: id, dom: tr});
             }
         });
@@ -332,7 +330,6 @@
         let res = solveCPM(activitiesInput);
         if(!res) { alert("Wprowadź dane!"); return; }
 
-        // Wypełnienie tabeli wejściowej wynikami
         activeRows.forEach(row => {
             let data = res.actsData[row.id];
             if(data.zc === 0) row.dom.classList.add('critical-row');
@@ -388,66 +385,184 @@
     function generateDetailedAnalysis(res, actsInput) {
         let T1 = res.T1;
         let criticalActs = Object.keys(res.actsData).filter(k => res.actsData[k].zc === 0).join(', ');
+        let nonCriticalSlacks = Object.keys(res.actsData).filter(k => res.actsData[k].zc > 0).map(k => `Operacja <b>${k}</b> (ZC = ${res.actsData[k].zc}, ZS = ${res.actsData[k].zs})`).join('; ');
         
-        let nonCriticalSlacks = Object.keys(res.actsData)
-            .filter(k => res.actsData[k].zc > 0)
-            .map(k => `Operacja <b>${k}</b> (ZC = ${res.actsData[k].zc}, ZS = ${res.actsData[k].zs})`)
-            .join('; ');
-        
-        // Pkt E - Symulacja wydłużenia
+        // --- PKT II (E, F) ---
         let extVal = parseInt(document.getElementById('sim-ext-val').value) || 2;
         let extRes = parseInt(document.getElementById('sim-ext-res').value) || 1;
         let actsExt = [];
-        actsInput.forEach(a => {
-            let clone = JSON.parse(JSON.stringify(actsInput));
-            clone.find(c => c.id === a.id).duration += extVal;
-            if(solveCPM(clone).T1 - T1 === extRes) actsExt.push(a.id);
-        });
+        actsInput.forEach(a => { let clone = JSON.parse(JSON.stringify(actsInput)); clone.find(c => c.id === a.id).duration += extVal; if(solveCPM(clone).T1 - T1 === extRes) actsExt.push(a.id); });
 
-        // Pkt F - Symulacja skrócenia
         let shrVal = parseInt(document.getElementById('sim-shr-val').value) || 2;
         let shrRes = parseInt(document.getElementById('sim-shr-res').value) || 1;
         let actsShr = [];
-        actsInput.forEach(a => {
-            let clone = JSON.parse(JSON.stringify(actsInput));
-            clone.find(c => c.id === a.id).duration = Math.max(0, a.duration - shrVal);
-            if(T1 - solveCPM(clone).T1 === shrRes) actsShr.push(a.id);
-        });
+        actsInput.forEach(a => { let clone = JSON.parse(JSON.stringify(actsInput)); clone.find(c => c.id === a.id).duration = Math.max(0, a.duration - shrVal); if(T1 - solveCPM(clone).T1 === shrRes) actsShr.push(a.id); });
 
+        // BUDOWANIE HTML DLA SEKCJI II
         let html = `
-            <h3>II. Odpowiedzi analityczne:</h3>
+            <h3>II. Przy nominalnych czasach trwania:</h3>
             <div class="analysis-card">
                 <p><b>A.</b> Najkrótszy czas trwania przedsięwzięcia (T1): <span class="highlight">${T1}</span> dni.</p>
                 <p><b>B.</b> Ścieżka krytyczna (operacje): <span class="highlight">${criticalActs}</span>.</p>
                 <p><b>C.</b> Zapasy czasu operacji niekrytycznych:<br> ${nonCriticalSlacks || "Brak operacji niekrytycznych."}</p>
                 <p><b>D.</b> Wszystkie ścieżki od startu do końca:</p>
-                <ul>
-                    ${res.paths.map(p => `<li>${p.path} (długość: ${p.len === T1 ? `<span class="highlight">${p.len} - KRYTYCZNA</span>` : p.len})</li>`).join('')}
-                </ul>
+                <ul>${res.paths.map(p => `<li>${p.path} (długość: ${p.len === T1 ? `<span class="highlight">${p.len} - KRYTYCZNA</span>` : p.len})</li>`).join('')}</ul>
                 <p><b>E.</b> Operacje, których wydłużenie o ${extVal} dni spowoduje wydłużenie całości o ${extRes} dni: <span class="highlight">${actsExt.length > 0 ? actsExt.join(', ') : "Brak takich operacji"}</span>.</p>
                 <p><b>F.</b> Operacje, których skrócenie o ${shrVal} dni spowoduje skrócenie całości o ${shrRes} dni: <span class="highlight">${actsShr.length > 0 ? actsShr.join(', ') : "Brak takich operacji"}</span>.</p>
             </div>
-        `;
-
-        html += `
-            <h3>G & H. Harmonogram (Wczesne Starty) i Wykres Zatrudnienia</h3>
-            <div class="instructions">Ułożenie zadań według <b>Najwcześniejszego Terminu Rozpoczęcia (NWR)</b>. Czerwony = Ścieżka Krytyczna. Paski na dole oznaczają zapas swobodny.</div>
+            
+            <h3>II. G & H. Harmonogram (Wczesne Starty) i Wykres Zatrudnienia</h3>
+            <div class="instructions">Ułożenie według Najwcześniejszego Terminu Rozpoczęcia (NWR). Czerwony = Ścieżka Krytyczna. Paski na dole = Zapas swobodny. (Oś Y odwrócona, 'a' na dole).</div>
             <div class="gantt-container">${generateGantt(res, T1, 'early')}</div>
+            
+            <h3>II. I. Harmonogram (Późne Starty)</h3>
+            <div class="instructions">Ułożenie według Najpóźniejszego Terminu Rozpoczęcia (NPR). (Oś Y odwrócona, 'a' na dole).</div>
+            <div class="gantt-container">${generateGantt(res, T1, 'late')}</div>
         `;
 
+        // --- PKT III (A, B, C) ---
+        let minActsInput = JSON.parse(JSON.stringify(actsInput));
+        minActsInput.forEach(a => a.duration = a.minTime);
+        let resMin = solveCPM(minActsInput);
+        let T2 = resMin ? resMin.T1 : 0;
+        let maxShortenCost = actsInput.reduce((sum, a) => sum + ((a.duration - a.minTime) * a.workers), 0);
+
+        let minCostToT2 = 0;
+        let simActs = JSON.parse(JSON.stringify(actsInput));
+        let currentT = T1;
+        let loopGuard = 1000;
+        while (currentT > T2 && loopGuard-- > 0) {
+            let bestCost = Infinity; let bestCombo = null;
+            let candidates = simActs.filter(a => a.duration > a.minTime);
+            let subsets = getSubsets(candidates, candidates.length); 
+            for (let subset of subsets) {
+                let cost = subset.reduce((sum, a) => sum + a.workers, 0);
+                if (cost >= bestCost) continue; 
+                let tempActs = JSON.parse(JSON.stringify(simActs));
+                for (let a of subset) tempActs.find(t => t.id === a.id).duration--;
+                if (solveCPM(tempActs).T1 < currentT) { bestCost = cost; bestCombo = subset; }
+            }
+            if (!bestCombo) break; 
+            for (let a of bestCombo) simActs.find(t => t.id === a.id).duration--;
+            minCostToT2 += bestCost;
+            currentT = solveCPM(simActs).T1;
+        }
+
+        // --- PKT IV (Skracanie wg budżetu) ---
+        let budgetInput = parseInt(document.getElementById('sim-budget').value) || 0;
+        let remainingBudget = budgetInput;
+        let simIVActs = JSON.parse(JSON.stringify(actsInput));
+        let currentT3 = T1;
+        let ivUsage = {};
+        actsInput.forEach(a => ivUsage[a.id] = 0);
+        
+        loopGuard = 1000;
+        while (currentT3 > T2 && remainingBudget > 0 && loopGuard-- > 0) {
+            let bestCost = Infinity; let bestCombo = null;
+            let candidates = simIVActs.filter(a => a.duration > a.minTime);
+            let subsets = getSubsets(candidates, candidates.length); 
+            for (let subset of subsets) {
+                let cost = subset.reduce((sum, a) => sum + a.workers, 0);
+                if (cost > remainingBudget || cost >= bestCost) continue; 
+                let tempActs = JSON.parse(JSON.stringify(simIVActs));
+                for (let a of subset) tempActs.find(t => t.id === a.id).duration--;
+                if (solveCPM(tempActs).T1 < currentT3) { bestCost = cost; bestCombo = subset; }
+            }
+            if (!bestCombo) break; 
+            for (let a of bestCombo) {
+                simIVActs.find(t => t.id === a.id).duration--;
+                ivUsage[a.id] += a.workers;
+            }
+            remainingBudget -= bestCost;
+            currentT3 = solveCPM(simIVActs).T1;
+        }
+        let totalUsedIV = budgetInput - remainingBudget;
+        let ivDetails = Object.keys(ivUsage).filter(k => ivUsage[k] > 0).map(k => `<b>${k}</b>: ${ivUsage[k]} j.`).join(', ');
+
+        // --- PKT V (Wyrównywanie zasobów / Resource Leveling) ---
+        let maxWorkersLimit = parseInt(document.getElementById('sim-limit').value) || 4;
+        let vFinished = new Set();
+        let vInProgress = []; // {id, rem, work}
+        let vTime = 0;
+        let vStartTimes = {}; let vEndTimes = {};
+        let vActs = JSON.parse(JSON.stringify(actsInput));
+        
+        // Zabezpieczenie przed zadaniami, które same w sobie przekraczają limit
+        let impossible = vActs.filter(a => a.workers > maxWorkersLimit);
+        let vHtml = "";
+        let leveledSchedule = {};
+
+        if(impossible.length > 0) {
+            vHtml = `<p class="highlight">Błąd: Operacje ${impossible.map(i=>i.id).join(',')} wymagają więcej pracowników (${impossible.map(i=>i.workers).join(',')}) niż wynosi dzienny limit (${maxWorkersLimit}). Nie da się zaplanować.</p>`;
+        } else {
+            loopGuard = 10000;
+            while(vFinished.size < vActs.length && loopGuard-- > 0) {
+                vInProgress = vInProgress.filter(t => { 
+                    if(t.rem === 0) { vFinished.add(t.id); vEndTimes[t.id] = vTime; return false; } 
+                    return true; 
+                });
+                
+                let currentWorkers = vInProgress.reduce((sum, t) => sum + t.work, 0);
+                
+                let eligible = vActs.filter(a => !vFinished.has(a.id) && !vInProgress.find(p=>p.id===a.id) && a.preds.every(p => vFinished.has(p)));
+                // Heurystyka: Zaczynamy te, które mają najmniejszy zapas wg oryginalnego CPM (priorytet ścieżki krytycznej)
+                eligible.sort((a, b) => res.actsData[a.id].ls - res.actsData[b.id].ls);
+                
+                for(let task of eligible) {
+                    if(currentWorkers + task.workers <= maxWorkersLimit) {
+                        vInProgress.push({id: task.id, rem: task.duration, work: task.workers});
+                        vStartTimes[task.id] = vTime;
+                        currentWorkers += task.workers;
+                    }
+                }
+                
+                if(vInProgress.length > 0 || (eligible.length > 0 && currentWorkers === 0)) {
+                    vTime++;
+                    vInProgress.forEach(t => t.rem--);
+                } else if(vFinished.size < vActs.length) {
+                    vTime++;
+                }
+            }
+            let T4 = Math.max(...Object.values(vEndTimes));
+            
+            vActs.forEach(a => { leveledSchedule[a.id] = { nwr: vStartTimes[a.id], nwz: vEndTimes[a.id], zc: res.actsData[a.id].zc, workers: a.workers }; });
+            
+            let vStartsOutput = vActs.map(a => `<b>${a.id}</b>: dzień ${vStartTimes[a.id]}`).join(', ');
+            
+            vHtml = `
+                <p><b>Czas przedsięwzięcia (T4):</b> <span class="highlight">${T4}</span> dni.</p>
+                <p><b>Chwile rozpoczynania operacji:</b> ${vStartsOutput}.</p>
+                <div class="instructions">Szary kolor wiersza przed operacją oznacza, że została ona celowo opóźniona przez algorytm ze względu na brak wolnych pracowników danego dnia.</div>
+                <div class="gantt-container">${generateCustomGantt(leveledSchedule, T4, res.actsData, maxWorkersLimit)}</div>
+            `;
+        }
+
+        // DOKLEJENIE SEKCJI III, IV, V DO HTML
         html += `
-            <h3>I. Harmonogram (Późne Starty)</h3>
-            <div class="instructions">Ułożenie zadań według <b>Najpóźniejszego Terminu Rozpoczęcia (NPR)</b> niepowodującego wydłużenia czasu T1.</div>
-            <div class="gantt-container">${generateGantt(res, T1, 'late')}</div>
+            <h3>III. Przy minimalnych czasach trwania:</h3>
+            <div class="analysis-card">
+                <p><b>A.</b> Najkrótszy czas trwania przedsięwzięcia (T2): <span class="highlight">${T2}</span> dni.</p>
+                <p><b>B.</b> Zużycie zasobu do maksymalnego skrócenia wszystkich operacji: <span class="highlight">${maxShortenCost}</span> jednostek.</p>
+                <p><b>C.</b> Najmniejsze zużycie zasobu do skrócenia projektu do T2 (Crashing): <span class="highlight">${minCostToT2}</span> jednostek.</p>
+            </div>
+            
+            <h3>IV. Skracanie przy ograniczonym zasobie (Budżet = ${budgetInput}):</h3>
+            <div class="analysis-card">
+                <p>Algorytm wykorzystał <b>${totalUsedIV}</b> z ${budgetInput} jednostek budżetu na skracanie.</p>
+                <p>Uzyskany czas przedsięwzięcia (T3): <span class="highlight">${currentT3}</span> dni.</p>
+                <p>Przydzielone zasoby do zadań: ${ivDetails || "Brak operacji do skrócenia w tym budżecie"}.</p>
+            </div>
+
+            <h3>V. Planowanie z ograniczeniem zasobów (Max ${maxWorkersLimit} prac. / dzień):</h3>
+            <div class="analysis-card">${vHtml}</div>
         `;
 
         document.getElementById('analysisResults').innerHTML = html;
     }
 
     function generateGantt(res, T1, type) {
-        let acts = Object.keys(res.actsData).sort(); // Sortuj alfabetycznie
+        let acts = Object.keys(res.actsData).sort().reverse(); 
         let workersPerDay = new Array(T1).fill(0);
-        
         let html = `<table class="gantt-table"><tr><th class="task-name">Zad.</th>`;
         for(let i=1; i<=T1; i++) html += `<th>${i}</th>`;
         html += `</tr>`;
@@ -456,32 +571,54 @@
             let a = res.actsData[id];
             let startDay = (type === 'early') ? a.nwr : a.npr;
             let endDay = (type === 'early') ? a.nwz : a.npz;
-            
             html += `<tr><td class="task-name">${id}</td>`;
             for(let day=0; day<T1; day++) {
                 if(day >= startDay && day < endDay) {
                     html += `<td><div class="gantt-bar ${a.zc===0 ? 'critical' : ''}"></div></td>`;
-                    workersPerDay[day] += a.workers; // Zliczanie pracowników
+                    workersPerDay[day] += a.workers; 
                 } else if(type==='early' && a.zc > 0 && day >= a.nwz && day < (a.nwz + a.zs)) {
-                    // Pokaż zapas swobodny na wykresie wczesnym
                     html += `<td><div class="gantt-bar slack" title="Zapas swobodny"></div></td>`;
-                } else {
-                    html += `<td></td>`;
-                }
+                } else html += `<td></td>`;
             }
             html += `</tr>`;
         });
 
-        // Wiersz Histogramu Pracowników (Tylko dla wykresu wczesnego zgodnie z poleceniem H)
         if(type === 'early') {
             html += `<tr class="histogram-row"><td class="task-name" style="font-size: 10px;">Pracownicy</td>`;
-            workersPerDay.forEach(w => {
-                html += `<td>${w > 0 ? w : ''}</td>`;
-            });
+            workersPerDay.forEach(w => html += `<td>${w > 0 ? w : ''}</td>`);
             html += `</tr>`;
         }
-        
-        html += `</table>`;
+        return html + `</table>`;
+    }
+
+    function generateCustomGantt(schedule, T, originalActsData, limit) {
+        let acts = Object.keys(schedule).sort().reverse(); 
+        let workersPerDay = new Array(T).fill(0);
+        let html = `<table class="gantt-table"><tr><th class="task-name">Zad.</th>`;
+        for(let i=1; i<=T; i++) html += `<th>${i}</th>`;
+        html += `</tr>`;
+
+        acts.forEach(id => {
+            let a = schedule[id];
+            let origNWR = originalActsData[id].nwr; // Żeby pokazać celowe opóźnienie algorytmem
+            html += `<tr><td class="task-name">${id}</td>`;
+            for(let day=0; day<T; day++) {
+                if(day >= a.nwr && day < a.nwz) {
+                    html += `<td><div class="gantt-bar ${a.zc===0 ? 'critical' : ''}"></div></td>`;
+                    workersPerDay[day] += a.workers; 
+                } else if(day >= origNWR && day < a.nwr) {
+                    html += `<td><div class="gantt-bar delayed" title="Opóźnione przez brak pracowników"></div></td>`;
+                } else html += `<td></td>`;
+            }
+            html += `</tr>`;
+        });
+
+        html += `<tr class="histogram-row"><td class="task-name" style="font-size: 10px;">Pracownicy</td>`;
+        workersPerDay.forEach(w => {
+            let limitAlert = w > limit ? 'histogram-alert' : '';
+            html += `<td class="${limitAlert}">${w > 0 ? w : ''}</td>`;
+        });
+        html += `</tr></table>`;
         return html;
     }
 </script>
