@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generator Sieci Łukowej (AoA) CPM</title>
-    <!-- Biblioteka do rysowania grafów -->
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         body {
@@ -52,18 +51,38 @@
         button:hover { background-color: #1a252f; }
         #mynetwork {
             width: 100%;
-            height: 600px;
+            height: 500px;
             border: 1px solid #e1e8ed;
             margin-top: 25px;
             border-radius: 5px;
             background-color: #ffffff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+            background-color: #fff;
+        }
+        th, td {
+            border: 1px solid #ced4da;
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+        .critical-row {
+            background-color: #ffe0e0;
+            font-weight: bold;
+            color: #c0392b;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Kreator Sieci Łukowej (AoA) z węzłami krzyżowymi</h2>
+    <h2>Kreator Sieci Łukowej (AoA) z tabelą CPM</h2>
     
     <div class="input-group">
         <label>Operacje:</label>
@@ -78,9 +97,28 @@
         <input type="text" id="durations" value="5, 2, 3, 3, 7, 4, 6">
     </div>
 
-    <button onclick="drawNetwork()">Generuj Sieć Łukową</button>
+    <button onclick="drawNetwork()">Generuj Sieć i Tabelę</button>
 
     <div id="mynetwork"></div>
+
+    <table id="cpmTable">
+        <thead>
+            <tr>
+                <th>Operacja</th>
+                <th>Poprzednik</th>
+                <th>Czas</th>
+                <th>NWR</th>
+                <th>NWZ</th>
+                <th>NPR</th>
+                <th>NPZ</th>
+                <th>ZC</th>
+                <th>ZS</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Wiersze zostaną dodane przez JavaScript -->
+        </tbody>
+    </table>
 </div>
 
 <script>
@@ -97,7 +135,8 @@
         let activities = ops.map((op, i) => ({
             id: op,
             duration: durations[i],
-            preds: predsInput[i] === '-' ? [] : predsInput[i].split(';').map(s => s.trim())
+            preds: predsInput[i] === '-' ? [] : predsInput[i].split(';').map(s => s.trim()),
+            rawPreds: predsInput[i]
         }));
 
         // 1. Zmienne do budowy grafu zdarzeń (AoA)
@@ -113,7 +152,6 @@
             groups[predStr].acts.push(a.id);
         });
 
-        // Sprawdzanie do ilu grup zależy dany poprzednik (do optymalizacji operacji pozornych)
         let predUsageCount = {};
         Object.values(groups).forEach(g => {
             g.preds.forEach(p => predUsageCount[p] = (predUsageCount[p] || 0) + 1);
@@ -126,11 +164,10 @@
         Object.values(groups).forEach(g => {
             let startEvent;
             if (g.preds.length === 0) {
-                startEvent = 0; // Węzeł początkowy
+                startEvent = 0; 
             } else if (g.preds.length === 1) {
-                startEvent = actEndEvent[g.preds[0]]; // Tylko jeden poprzednik = łączymy bezpośrednio
+                startEvent = actEndEvent[g.preds[0]]; 
             } else {
-                // Wiele poprzedników - szukamy czy jest jakiś używany tylko dla tej grupy
                 let singleUsePred = g.preds.find(p => predUsageCount[p] === 1);
                 if (singleUsePred) {
                     startEvent = actEndEvent[singleUsePred];
@@ -157,7 +194,6 @@
             if (!isPredecessor[a.id]) actEndEvent[a.id] = endProjectEvent;
         });
 
-        // Tworzenie faktycznych strzałek (operacji)
         activities.forEach(a => {
             edges.push({ from: actStartEvent[a.id], to: actEndEvent[a.id], duration: a.duration, isDummy: false, label: a.id });
         });
@@ -166,8 +202,7 @@
         edges.forEach(e => { nodesSet.add(e.from); nodesSet.add(e.to); });
         let nodesArray = Array.from(nodesSet).sort((a,b) => a-b);
 
-        // 5. Wyliczanie terminów zdarzeń (TW - Najwcześniejszy, TP - Najpóźniejszy)
-        // Sortowanie topologiczne
+        // 5. Wyliczanie terminów zdarzeń (TW i TP)
         let inDegree = {}; let adj = {};
         nodesArray.forEach(n => { inDegree[n] = 0; adj[n] = []; });
         edges.forEach(e => {
@@ -187,7 +222,7 @@
             });
         }
 
-        // Liczenie TW (Od lewej do prawej)
+        // TW
         let TW = {};
         nodesArray.forEach(n => TW[n] = 0);
         topoOrder.forEach(u => {
@@ -198,7 +233,7 @@
 
         let projectDuration = Math.max(...Object.values(TW));
 
-        // Liczenie TP (Od prawej do lewej)
+        // TP
         let TP = {};
         nodesArray.forEach(n => TP[n] = projectDuration);
         let reverseTopo = [...topoOrder].reverse();
@@ -212,7 +247,39 @@
             });
         });
 
-        // 6. Przygotowanie danych dla silnika Vis.js
+        // 6. GENEROWANIE TABELI DANYCH CPM
+        const tbody = document.querySelector("#cpmTable tbody");
+        tbody.innerHTML = ""; // Czyszczenie starych wyników
+
+        activities.forEach(a => {
+            let from = actStartEvent[a.id];
+            let to = actEndEvent[a.id];
+            
+            let nwr = TW[from];
+            let nwz = nwr + a.duration;
+            let npz = TP[to];
+            let npr = npz - a.duration;
+            let zc = npz - nwz; // Zapas całkowity
+            let zs = TW[to] - nwz; // Zapas swobodny
+
+            let trClass = zc === 0 ? 'class="critical-row"' : '';
+
+            tbody.innerHTML += `
+                <tr ${trClass}>
+                    <td>${a.id}</td>
+                    <td>${a.rawPreds}</td>
+                    <td>${a.duration}</td>
+                    <td>${nwr}</td>
+                    <td>${nwz}</td>
+                    <td>${npr}</td>
+                    <td>${npz}</td>
+                    <td>${zc}</td>
+                    <td>${zs}</td>
+                </tr>
+            `;
+        });
+
+        // 7. Przygotowanie danych grafu (Vis.js)
         let nodeIdMap = {};
         topoOrder.forEach((oldId, index) => nodeIdMap[oldId] = index + 1);
 
@@ -225,7 +292,6 @@
             let isCritical = (z === 0);
             let color = isCritical ? '#e74c3c' : '#2c3e50';
 
-            // Rysowanie węzła jako "kółko z Xem" przy użyciu SVG w locie
             let svg = `
                 <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">
                     <circle cx="40" cy="40" r="38" stroke="${color}" stroke-width="${isCritical ? '3' : '2'}" fill="#fff" />
@@ -238,7 +304,6 @@
                 </svg>
             `;
             let url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.trim());
-            
             visNodes.push({ id: id, shape: 'image', image: url, size: 40 });
         });
 
@@ -247,7 +312,6 @@
             let fromId = nodeIdMap[e.from];
             let toId = nodeIdMap[e.to];
             
-            // Warunek przynależności strzałki do ścieżki krytycznej
             let isCritical = (TW[e.from] === TP[e.from]) && (TW[e.to] === TP[e.to]) && (TW[e.from] + e.duration === TP[e.to]);
             let edgeColor = isCritical ? '#e74c3c' : '#7f8c8d';
 
@@ -258,7 +322,7 @@
                 font: { align: 'top', color: edgeColor, size: 16, background: 'rgba(255,255,255,0.8)' },
                 color: { color: edgeColor, highlight: '#c0392b' },
                 width: isCritical ? 3 : 1.5,
-                dashes: e.isDummy ? [8, 8] : false, // Przerywana linia dla zadań pozornych
+                dashes: e.isDummy ? [8, 8] : false,
                 arrows: 'to',
                 smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.3 }
             });
@@ -267,9 +331,7 @@
         const data = { nodes: new vis.DataSet(visNodes), edges: new vis.DataSet(visEdges) };
         const container = document.getElementById('mynetwork');
         const options = {
-            layout: {
-                hierarchical: { direction: 'LR', sortMethod: 'directed', levelSeparation: 220, nodeSpacing: 100 }
-            },
+            layout: { hierarchical: { direction: 'LR', sortMethod: 'directed', levelSeparation: 220, nodeSpacing: 100 } },
             physics: false
         };
 
