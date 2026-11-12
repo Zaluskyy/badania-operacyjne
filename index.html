@@ -3,231 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Generator Sieci Łukowej (AoA) - Arkusz CPM</title>
+    <title>Pełna Analiza CPM (Sieć AoA, Gantt, Symulacje)</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 15px;
-            background-color: #f0f2f5;
+            background-color: #f4f6f9;
             color: #333;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1300px;
             margin: 0 auto;
             background: #fff;
             padding: 20px;
-            border-radius: 10px;
+            border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
-        h2 { margin-top: 0; color: #1a252f; margin-bottom: 15px; font-size: 22px; }
+        h2 { margin-top: 0; color: #1a252f; margin-bottom: 15px; font-size: 22px; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px;}
+        h3 { color: #2980b9; margin-top: 30px; font-size: 18px; border-bottom: 1px solid #ecf0f1; padding-bottom: 5px;}
         
-        .instructions {
-            font-size: 13px;
-            color: #7f8c8d;
-            margin-bottom: 15px;
-            line-height: 1.4;
-        }
+        .instructions { font-size: 13px; color: #7f8c8d; margin-bottom: 15px; line-height: 1.5; }
 
-        /* Kontener tabeli umożliwiający scrollowanie na telefonach */
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            border: 1px solid #ced4da;
-        }
+        .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ced4da; }
+        table { width: 100%; min-width: 850px; border-collapse: collapse; background-color: #fff; }
+        th, td { border: 1px solid #ced4da; text-align: center; padding: 0; position: relative; height: 44px; }
+        th { background-color: #2c3e50; color: white; padding: 10px 5px; font-size: 13px; }
+        input { width: 100%; height: 100%; box-sizing: border-box; border: none; padding: 8px 5px; font-size: 15px; text-align: center; outline: none; background: transparent;}
+        input:focus { background-color: #e8f4fd; box-shadow: inset 0 0 0 2px #3498db; }
         
-        table {
-            width: 100%;
-            min-width: 750px; /* Zapobiega zgnieceniu kolumn na małych ekranach */
-            border-collapse: collapse;
-            background-color: #fff;
-        }
-        th, td {
-            border: 1px solid #ced4da;
-            text-align: center;
-            padding: 0;
-            position: relative;
-            height: 44px; /* Optymalna wysokość dla dotyku na smartfonach */
-        }
-        th {
-            background-color: #2c3e50;
-            color: white;
-            padding: 10px 5px;
-            font-size: 14px;
-        }
-        input {
-            width: 100%;
-            height: 100%;
-            box-sizing: border-box;
-            border: none;
-            padding: 10px 5px;
-            font-size: 15px;
-            text-align: center;
-            background: transparent;
-            outline: none;
-        }
-        input:focus {
-            background-color: #e8f4fd;
-            box-shadow: inset 0 0 0 2px #3498db;
-        }
+        .readonly-cell { background-color: #e9ecef; color: #6c757d; font-size: 14px; display: flex; align-items: center; justify-content: center; height: 100%; }
+        .disabled-row input { color: #adb5bd; text-decoration: line-through; background-color: #f8f9fa; }
+        .disabled-row .readonly-cell { color: #adb5bd; text-decoration: none; }
         
-        .readonly-cell {
-            background-color: #e9ecef;
-            color: #6c757d;
-            font-size: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-        }
+        .toggle-btn { position: absolute; left: 5px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #e74c3c; font-weight: bold; font-size: 11px; user-select: none; background: #ffe0e0; padding: 4px 6px; border-radius: 3px; z-index: 2; }
+        .disabled-row .toggle-btn { color: #27ae60; background: #e0f8e9; }
         
-        .disabled-row input {
-            color: #adb5bd;
-            text-decoration: line-through;
-            background-color: #f8f9fa;
-        }
-        .disabled-row .readonly-cell {
-            color: #adb5bd;
-            text-decoration: none;
-        }
-        
-        .toggle-btn {
-            position: absolute;
-            left: 5px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            color: #e74c3c;
-            font-weight: bold;
-            font-size: 11px;
-            user-select: none;
-            background: #ffe0e0;
-            padding: 4px 6px;
-            border-radius: 3px;
-            z-index: 2;
-        }
-        .disabled-row .toggle-btn {
-            color: #27ae60;
-            background: #e0f8e9;
-        }
-
         .critical-row { background-color: #ffe0e0 !important; }
-        .critical-row input, .critical-row .readonly-cell {
-            color: #c0392b;
-            font-weight: bold;
-        }
+        .critical-row input, .critical-row .readonly-cell { color: #c0392b; font-weight: bold; }
 
-        .actions {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
+        .simulation-params { display: flex; flex-wrap: wrap; gap: 15px; background: #fdfefe; padding: 15px; border: 1px solid #e1e8ed; border-radius: 5px; margin-bottom: 20px; font-size: 14px; align-items: center;}
+        .simulation-params input { width: 40px; height: 26px; border: 1px solid #bdc3c7; border-radius: 3px; padding: 2px; box-shadow: none; background: #fff;}
 
-        button {
-            padding: 14px 20px;
-            font-size: 15px;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            transition: background-color 0.2s;
-            color: white;
-            flex-grow: 1;
-        }
+        .actions { display: flex; gap: 10px; margin-bottom: 20px; }
+        button { padding: 14px 20px; font-size: 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 5px; transition: 0.2s; color: white; flex-grow: 1; }
         .btn-add { background-color: #27ae60; }
         .btn-add:hover { background-color: #219653; }
         .btn-generate { background-color: #3498db; }
         .btn-generate:hover { background-color: #2980b9; }
 
-        #mynetwork {
-            width: 100%;
-            height: 500px;
-            border: 1px solid #e1e8ed;
-            border-radius: 5px;
-            background-color: #ffffff;
-            touch-action: pan-y pinch-zoom;
-        }
+        #mynetwork { width: 100%; height: 500px; border: 1px solid #e1e8ed; border-radius: 5px; background-color: #ffffff; touch-action: pan-y pinch-zoom; margin-bottom: 20px;}
 
-        @media (max-width: 600px) {
-            .actions { flex-direction: column; }
-            #mynetwork { height: 350px; }
-            h2 { font-size: 20px; }
-        }
+        /* Stylizacja wyników analizy */
+        .analysis-card { background: #fff; padding: 20px; border-radius: 5px; border: 1px solid #e1e8ed; margin-bottom: 20px; line-height: 1.6; }
+        .analysis-card ul { margin-top: 5px; padding-left: 20px; }
+        .highlight { font-weight: bold; color: #c0392b; }
+        
+        /* Wykresy Gantta */
+        .gantt-container { overflow-x: auto; margin-top: 10px; }
+        .gantt-table { width: auto; min-width: 100%; border-collapse: collapse; font-size: 12px; }
+        .gantt-table th, .gantt-table td { border: 1px solid #ecf0f1; width: 30px; min-width: 30px; max-width: 30px; height: 25px; padding: 0; text-align: center; }
+        .gantt-table th { background: #34495e; color: #fff; font-weight: normal; font-size: 11px;}
+        .gantt-table .task-name { width: 60px; min-width: 60px; font-weight: bold; background: #ecf0f1; color: #2c3e50; text-align: left; padding-left: 10px;}
+        .gantt-bar { background: #3498db; height: 100%; width: 100%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); }
+        .gantt-bar.critical { background: #e74c3c; }
+        .gantt-bar.slack { background: repeating-linear-gradient(45deg, #ecf0f1, #ecf0f1 5px, #bdc3c7 5px, #bdc3c7 10px); opacity: 0.6; }
+        
+        .histogram-row td { background: #fdfefe; font-weight: bold; color: #2c3e50; border-top: 2px solid #34495e; }
+        
+        @media (max-width: 768px) { .actions { flex-direction: column; } #mynetwork { height: 350px; } }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Interaktywny Arkusz CPM</h2>
+    <h2>Kompleksowa Analiza Sieci Projektowej (CPM)</h2>
     <div class="instructions">
-        Wskazówki:<br>
-        - Klawisz <b>Tab</b> przenosi kursor w dół kolumny.<br>
-        - Separator poprzedników: dowolny (np. <b>d, e</b> lub <b>d;e</b>). Puste pole lub <b>-</b> oznacza brak.<br>
-        - <b>Wielkość liter nie ma znaczenia</b> (A = a).<br>
-        - Kliknij przycisk <b>[X]</b> obok litery operacji, aby wykluczyć ją z obliczeń.
+        <b>Tab</b> przenosi kursor w dół kolumny.<br>
+        Separator poprzedników: dowolny (np. <b>d, e</b> lub <b>d;e</b>). Puste pole lub <b>-</b> oznacza brak. Wielkość liter ignorowana.<br>
+        Kolumna <b>Pracownicy</b> jest wymagana do narysowania histogramu (punkt H).
     </div>
 
     <div class="table-responsive">
         <table id="cpmTable">
             <thead>
                 <tr>
-                    <th style="width: 14%;">Operacja</th>
-                    <th style="width: 16%;">Poprzednik</th>
-                    <th style="width: 10%;">Czas</th>
-                    <th style="width: 10%;">NWR</th>
-                    <th style="width: 10%;">NWZ</th>
-                    <th style="width: 10%;">NPR</th>
-                    <th style="width: 10%;">NPZ</th>
-                    <th style="width: 10%;">ZC</th>
-                    <th style="width: 10%;">ZS</th>
+                    <th style="width: 12%;">Operacja</th>
+                    <th style="width: 12%;">Poprzednik</th>
+                    <th style="width: 9%;">Czas</th>
+                    <th style="width: 9%;">Pracownicy</th>
+                    <th style="width: 9%;">NWR</th>
+                    <th style="width: 9%;">NWZ</th>
+                    <th style="width: 9%;">NPR</th>
+                    <th style="width: 9%;">NPZ</th>
+                    <th style="width: 9%;">ZC</th>
+                    <th style="width: 9%;">ZS</th>
                 </tr>
             </thead>
-            <tbody id="tableBody">
-                <!-- Wiersze generowane na start -->
-            </tbody>
+            <tbody id="tableBody"></tbody>
         </table>
+    </div>
+
+    <!-- Parametry symulacji (Punkty E i F) -->
+    <div class="simulation-params">
+        <div>
+            <b>Pkt E (Wydłużenie):</b> Wydłużenie operacji o <input type="number" id="sim-ext-val" value="2"> dni, wydłuża projekt o <input type="number" id="sim-ext-res" value="1"> dzień.
+        </div>
+        <div>
+            <b>Pkt F (Skrócenie):</b> Skrócenie operacji o <input type="number" id="sim-shr-val" value="2"> dni, skraca projekt o <input type="number" id="sim-shr-res" value="1"> dzień.
+        </div>
     </div>
 
     <div class="actions">
         <button class="btn-add" onclick="addRow()">+ Dodaj operację</button>
-        <button class="btn-generate" onclick="calculateAndDraw()">Generuj Sieć i Przelicz</button>
+        <button class="btn-generate" onclick="runAnalysis()">Analizuj i Rysuj</button>
     </div>
 
+    <!-- Kontener na graf (Punkt I ze zdjęcia) -->
     <div id="mynetwork"></div>
+
+    <!-- Kontener na szczegółowe wyniki (Punkty II. A - I) -->
+    <div id="analysisResults"></div>
 </div>
 
 <script>
     let initialData = [
-        { id: 'a', preds: '', time: '' },
-        { id: 'b', preds: '', time: '' },
-        { id: 'c', preds: '', time: '' },
-        { id: 'd', preds: '', time: '' },
-        { id: 'e', preds: '', time: '' },
-        { id: 'f', preds: '', time: '' },
-        { id: 'g', preds: '', time: '' }
+        { id: 'a', preds: '', time: '', workers: '' },
+        { id: 'b', preds: '', time: '', workers: '' },
+        { id: 'c', preds: '', time: '', workers: '' },
+        { id: 'd', preds: '', time: '', workers: '' },
+        { id: 'e', preds: '', time: '', workers: '' },
+        { id: 'f', preds: '', time: '', workers: '' },
+        { id: 'g', preds: '', time: '', workers: '' }
     ];
-
     let nextCharCode = 'h'.charCodeAt(0);
 
     window.onload = () => {
         const tbody = document.getElementById('tableBody');
-        initialData.forEach(row => appendRowHtml(tbody, row.id, row.preds, row.time));
+        initialData.forEach(row => appendRowHtml(tbody, row.id, row.preds, row.time, row.workers));
         updateTabIndexes();
     };
 
-    function appendRowHtml(tbody, id, preds, time) {
+    function appendRowHtml(tbody, id, preds, time, workers) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
-                <span class="toggle-btn" onclick="toggleRow(this)" title="Aktywuj/Dezaktywuj">[X]</span>
+                <span class="toggle-btn" onclick="toggleRow(this)" title="Wyklucz/Przywróć">[X]</span>
                 <input type="text" class="inp-id" value="${id}" oninput="clearResults()">
             </td>
             <td><input type="text" class="inp-preds" value="${preds}" oninput="clearResults()"></td>
             <td><input type="text" class="inp-time" value="${time}" inputmode="numeric" oninput="clearResults()"></td>
+            <td><input type="text" class="inp-workers" value="${workers}" inputmode="numeric" oninput="clearResults()"></td>
             <td><div class="readonly-cell out-nwr"></div></td>
             <td><div class="readonly-cell out-nwz"></div></td>
             <td><div class="readonly-cell out-npr"></div></td>
@@ -239,9 +166,7 @@
     }
 
     function addRow() {
-        const tbody = document.getElementById('tableBody');
-        const char = String.fromCharCode(nextCharCode++);
-        appendRowHtml(tbody, char, '', '');
+        appendRowHtml(document.getElementById('tableBody'), String.fromCharCode(nextCharCode++), '', '', '');
         updateTabIndexes();
         clearResults();
     }
@@ -249,77 +174,34 @@
     function updateTabIndexes() {
         const rows = document.querySelectorAll('#tableBody tr');
         const N = rows.length;
-        
-        rows.forEach((tr, index) => {
-            const idInput = tr.querySelector('.inp-id');
-            const predsInput = tr.querySelector('.inp-preds');
-            const timeInput = tr.querySelector('.inp-time');
-            
-            idInput.setAttribute('tabindex', index + 1);
-            predsInput.setAttribute('tabindex', N + index + 1);
-            timeInput.setAttribute('tabindex', 2 * N + index + 1);
+        rows.forEach((tr, i) => {
+            tr.querySelector('.inp-id').setAttribute('tabindex', i + 1);
+            tr.querySelector('.inp-preds').setAttribute('tabindex', N + i + 1);
+            tr.querySelector('.inp-time').setAttribute('tabindex', 2 * N + i + 1);
+            tr.querySelector('.inp-workers').setAttribute('tabindex', 3 * N + i + 1);
         });
     }
 
     function toggleRow(btn) {
-        const tr = btn.closest('tr');
-        tr.classList.toggle('disabled-row');
-        if(tr.classList.contains('disabled-row')) {
-            btn.innerText = '[✓]';
-        } else {
-            btn.innerText = '[X]';
-        }
+        btn.closest('tr').classList.toggle('disabled-row');
+        btn.innerText = btn.closest('tr').classList.contains('disabled-row') ? '[✓]' : '[X]';
         clearResults();
     }
 
     function clearResults() {
-        const rows = document.querySelectorAll('#tableBody tr');
-        rows.forEach(tr => {
+        document.querySelectorAll('#tableBody tr').forEach(tr => {
             tr.classList.remove('critical-row');
-            tr.querySelector('.out-nwr').innerText = '';
-            tr.querySelector('.out-nwz').innerText = '';
-            tr.querySelector('.out-npr').innerText = '';
-            tr.querySelector('.out-npz').innerText = '';
-            tr.querySelector('.out-zc').innerText = '';
-            tr.querySelector('.out-zs').innerText = '';
+            tr.querySelectorAll('.readonly-cell').forEach(c => c.innerText = '');
         });
         document.getElementById('mynetwork').innerHTML = '';
+        document.getElementById('analysisResults').innerHTML = '';
     }
 
-    function calculateAndDraw() {
-        let activities = [];
-        const rows = document.querySelectorAll('#tableBody tr');
+    // GŁÓWNY SILNIK OBLICZENIOWY CPM (Wyizolowany by robić symulacje w tle)
+    function solveCPM(activitiesInput) {
+        if(activitiesInput.length === 0) return null;
         
-        rows.forEach(tr => {
-            if(!tr.classList.contains('disabled-row')) {
-                // Dodano toLowerCase() aby wielkość liter nie miała znaczenia
-                let id = tr.querySelector('.inp-id').value.trim().toLowerCase();
-                let predsRaw = tr.querySelector('.inp-preds').value.trim().toLowerCase();
-                let timeRaw = tr.querySelector('.inp-time').value.trim();
-                
-                if(id === '' || timeRaw === '') return; 
-                
-                let time = parseInt(timeRaw) || 0;
-                let predsArray = [];
-                
-                if(predsRaw !== '' && predsRaw !== '-') {
-                    predsArray = predsRaw.split(/[;,]+/).map(s => s.trim()).filter(s => s !== '');
-                }
-                
-                activities.push({
-                    id: id,
-                    duration: time,
-                    preds: predsArray,
-                    domRow: tr 
-                });
-            }
-        });
-
-        if(activities.length === 0) {
-            alert("Wprowadź poprawne dane przed wygenerowaniem wykresu!");
-            return;
-        }
-
+        let activities = JSON.parse(JSON.stringify(activitiesInput)); // Deep copy
         let eventCounter = 1;
         let actEndEvent = {}; 
         activities.forEach(a => actEndEvent[a.id] = eventCounter++);
@@ -328,7 +210,6 @@
         activities.forEach(a => {
             let validPreds = a.preds.filter(p => activities.find(act => act.id === p));
             let predStr = validPreds.sort().join(',');
-            
             if (!groups[predStr]) groups[predStr] = { preds: validPreds, acts: [] };
             groups[predStr].acts.push(a.id);
         });
@@ -343,24 +224,16 @@
 
         Object.values(groups).forEach(g => {
             let startEvent;
-            if (g.preds.length === 0) {
-                startEvent = 0; 
-            } else if (g.preds.length === 1) {
-                startEvent = actEndEvent[g.preds[0]]; 
-            } else {
+            if (g.preds.length === 0) startEvent = 0; 
+            else if (g.preds.length === 1) startEvent = actEndEvent[g.preds[0]]; 
+            else {
                 let singleUsePred = g.preds.find(p => predUsageCount[p] === 1);
                 if (singleUsePred) {
                     startEvent = actEndEvent[singleUsePred];
-                    g.preds.forEach(p => {
-                        if (p !== singleUsePred) {
-                            edges.push({ from: actEndEvent[p], to: startEvent, duration: 0, isDummy: true, label: "" });
-                        }
-                    });
+                    g.preds.forEach(p => { if (p !== singleUsePred) edges.push({ from: actEndEvent[p], to: startEvent, dur: 0, isDummy: true, label: "" }); });
                 } else {
                     startEvent = eventCounter++;
-                    g.preds.forEach(p => {
-                        edges.push({ from: actEndEvent[p], to: startEvent, duration: 0, isDummy: true, label: "" });
-                    });
+                    g.preds.forEach(p => edges.push({ from: actEndEvent[p], to: startEvent, dur: 0, isDummy: true, label: "" }));
                 }
             }
             g.acts.forEach(actId => actStartEvent[actId] = startEvent);
@@ -369,13 +242,8 @@
         let isPredecessor = {};
         Object.values(groups).forEach(g => g.preds.forEach(p => isPredecessor[p] = true));
         let endProjectEvent = eventCounter++;
-        activities.forEach(a => {
-            if (!isPredecessor[a.id]) actEndEvent[a.id] = endProjectEvent;
-        });
-
-        activities.forEach(a => {
-            edges.push({ from: actStartEvent[a.id], to: actEndEvent[a.id], duration: a.duration, isDummy: false, label: a.id });
-        });
+        activities.forEach(a => { if (!isPredecessor[a.id]) actEndEvent[a.id] = endProjectEvent; });
+        activities.forEach(a => edges.push({ from: actStartEvent[a.id], to: actEndEvent[a.id], dur: a.duration, isDummy: false, label: a.id }));
 
         let nodesSet = new Set();
         edges.forEach(e => { nodesSet.add(e.from); nodesSet.add(e.to); });
@@ -383,10 +251,7 @@
 
         let inDegree = {}; let adj = {};
         nodesArray.forEach(n => { inDegree[n] = 0; adj[n] = []; });
-        edges.forEach(e => {
-            inDegree[e.to] = (inDegree[e.to] || 0) + 1;
-            adj[e.from].push({to: e.to, dur: e.duration});
-        });
+        edges.forEach(e => { inDegree[e.to] = (inDegree[e.to] || 0) + 1; adj[e.from].push(e); });
 
         let queue = [];
         nodesArray.forEach(n => { if (inDegree[n] === 0) queue.push(n); });
@@ -394,116 +259,230 @@
         while(queue.length > 0) {
             let u = queue.shift();
             topoOrder.push(u);
-            adj[u].forEach(edge => {
-                inDegree[edge.to]--;
-                if(inDegree[edge.to] === 0) queue.push(edge.to);
-            });
+            adj[u].forEach(edge => { inDegree[edge.to]--; if(inDegree[edge.to] === 0) queue.push(edge.to); });
         }
 
         let TW = {};
         nodesArray.forEach(n => TW[n] = 0);
-        topoOrder.forEach(u => {
-            adj[u].forEach(edge => {
-                if (TW[u] + edge.dur > TW[edge.to]) TW[edge.to] = TW[u] + edge.dur;
-            });
-        });
-
+        topoOrder.forEach(u => { adj[u].forEach(e => { if (TW[u] + e.dur > TW[e.to]) TW[e.to] = TW[u] + e.dur; }); });
+        
         let projectDuration = Math.max(...Object.values(TW));
 
         let TP = {};
         nodesArray.forEach(n => TP[n] = projectDuration);
-        let reverseTopo = [...topoOrder].reverse();
+        let revTopo = [...topoOrder].reverse();
         let revAdj = {};
-        nodesArray.forEach(n => { revAdj[n] = []; });
-        edges.forEach(e => revAdj[e.to].push({from: e.from, dur: e.duration}));
+        nodesArray.forEach(n => revAdj[n] = []);
+        edges.forEach(e => revAdj[e.to].push({from: e.from, dur: e.dur}));
         
-        reverseTopo.forEach(u => {
-            revAdj[u].forEach(edge => {
-                if (TP[u] - edge.dur < TP[edge.from]) TP[edge.from] = TP[u] - edge.dur;
-            });
-        });
+        revTopo.forEach(u => { revAdj[u].forEach(e => { if (TP[u] - e.dur < TP[e.from]) TP[e.from] = TP[u] - e.dur; }); });
 
+        let actsData = {};
         activities.forEach(a => {
             let from = actStartEvent[a.id];
             let to = actEndEvent[a.id];
-            
-            let nwr = TW[from];
-            let nwz = nwr + a.duration;
-            let npz = TP[to];
-            let npr = npz - a.duration;
-            let zc = npz - nwz;
-            let zs = TW[to] - nwz;
+            let nwr = TW[from], nwz = nwr + a.duration;
+            let npz = TP[to], npr = npz - a.duration;
+            actsData[a.id] = { 
+                nwr: nwr, nwz: nwz, npr: npr, npz: npz, 
+                zc: npz - nwz, zs: TW[to] - nwz, workers: a.workers, duration: a.duration, isDummy: false
+            };
+        });
 
-            if (zc === 0) {
-                a.domRow.classList.add('critical-row');
+        // Wyszukiwanie wszystkich ścieżek
+        let paths = [];
+        function dfs(u, currentPath, currentLen) {
+            if(u === endProjectEvent) {
+                paths.push({path: currentPath.join(' → '), len: currentLen});
+                return;
             }
-
-            a.domRow.querySelector('.out-nwr').innerText = nwr;
-            a.domRow.querySelector('.out-nwz').innerText = nwz;
-            a.domRow.querySelector('.out-npr').innerText = npr;
-            a.domRow.querySelector('.out-npz').innerText = npz;
-            a.domRow.querySelector('.out-zc').innerText = zc;
-            a.domRow.querySelector('.out-zs').innerText = zs;
-        });
-
-        let nodeIdMap = {};
-        topoOrder.forEach((oldId, index) => nodeIdMap[oldId] = index + 1);
-
-        let visNodes = [];
-        Object.keys(nodeIdMap).forEach(oldId => {
-            let id = nodeIdMap[oldId];
-            let tw = TW[oldId];
-            let tp = TP[oldId];
-            let z = tp - tw;
-            let isCritical = (z === 0);
-            let color = isCritical ? '#e74c3c' : '#2c3e50';
-
-            let svg = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">
-                    <circle cx="40" cy="40" r="38" stroke="${color}" stroke-width="${isCritical ? '3' : '2'}" fill="#fff" />
-                    <line x1="13.2" y1="13.2" x2="66.8" y2="66.8" stroke="${color}" stroke-width="${isCritical ? '2' : '1'}" />
-                    <line x1="66.8" y1="13.2" x2="13.2" y2="66.8" stroke="${color}" stroke-width="${isCritical ? '2' : '1'}" />
-                    <text x="40" y="26" font-size="14" font-family="sans-serif" font-weight="bold" text-anchor="middle" fill="${color}">${id}</text>
-                    <text x="18" y="45" font-size="14" font-family="sans-serif" text-anchor="middle" fill="black">${tw}</text>
-                    <text x="62" y="45" font-size="14" font-family="sans-serif" text-anchor="middle" fill="black">${tp}</text>
-                    <text x="40" y="70" font-size="14" font-family="sans-serif" text-anchor="middle" fill="black">${z}</text>
-                </svg>
-            `;
-            let url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.trim());
-            visNodes.push({ id: id, shape: 'image', image: url, size: 40 });
-        });
-
-        let visEdges = [];
-        edges.forEach(e => {
-            let fromId = nodeIdMap[e.from];
-            let toId = nodeIdMap[e.to];
-            
-            let isCritical = (TW[e.from] === TP[e.from]) && (TW[e.to] === TP[e.to]) && (TW[e.from] + e.duration === TP[e.to]);
-            let edgeColor = isCritical ? '#e74c3c' : '#7f8c8d';
-
-            visEdges.push({
-                from: fromId,
-                to: toId,
-                label: e.isDummy ? "" : `${e.label}(${e.duration})`,
-                font: { align: 'top', color: edgeColor, size: 16, background: 'rgba(255,255,255,0.8)' },
-                color: { color: edgeColor, highlight: '#c0392b' },
-                width: isCritical ? 3 : 1.5,
-                dashes: e.isDummy ? [8, 8] : false,
-                arrows: 'to',
-                smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.3 }
+            adj[u].forEach(e => {
+                let nextPath = [...currentPath];
+                if(!e.isDummy) nextPath.push(e.label); // Pomijamy nazwy operacji pozornych w wypisie ścieżek dla czystości
+                dfs(e.to, nextPath, currentLen + e.dur);
             });
+        }
+        dfs(0, [], 0);
+
+        return { 
+            TW, TP, T1: projectDuration, edges, topoOrder, 
+            actsData, paths, activities 
+        };
+    }
+
+    function runAnalysis() {
+        let activeRows = [];
+        let activitiesInput = [];
+        
+        document.querySelectorAll('#tableBody tr').forEach(tr => {
+            if(!tr.classList.contains('disabled-row')) {
+                let id = tr.querySelector('.inp-id').value.trim().toLowerCase();
+                let predsRaw = tr.querySelector('.inp-preds').value.trim().toLowerCase();
+                let timeRaw = tr.querySelector('.inp-time').value.trim();
+                let workRaw = tr.querySelector('.inp-workers').value.trim();
+                
+                if(id === '' || timeRaw === '') return; 
+                let preds = (predsRaw !== '' && predsRaw !== '-') ? predsRaw.split(/[;,]+/).map(s => s.trim()).filter(s => s !== '') : [];
+                
+                activitiesInput.push({ id: id, duration: parseInt(timeRaw) || 0, workers: parseInt(workRaw) || 0, preds: preds });
+                activeRows.push({id: id, dom: tr});
+            }
         });
 
-        const data = { nodes: new vis.DataSet(visNodes), edges: new vis.DataSet(visEdges) };
-        const container = document.getElementById('mynetwork');
-        
-        const options = {
-            layout: { hierarchical: { direction: 'LR', sortMethod: 'directed', levelSeparation: 220, nodeSpacing: 100 } },
-            physics: false,
-            interaction: { zoomSpeed: 0.3 }
-        };
+        let res = solveCPM(activitiesInput);
+        if(!res) { alert("Wprowadź dane!"); return; }
 
-        new vis.Network(container, data, options);
+        // Wypełnienie tabeli wejściowej wynikami
+        activeRows.forEach(row => {
+            let data = res.actsData[row.id];
+            if(data.zc === 0) row.dom.classList.add('critical-row');
+            row.dom.querySelector('.out-nwr').innerText = data.nwr;
+            row.dom.querySelector('.out-nwz').innerText = data.nwz;
+            row.dom.querySelector('.out-npr').innerText = data.npr;
+            row.dom.querySelector('.out-npz').innerText = data.npz;
+            row.dom.querySelector('.out-zc').innerText = data.zc;
+            row.dom.querySelector('.out-zs').innerText = data.zs;
+        });
+
+        drawNetworkGraph(res);
+        generateDetailedAnalysis(res, activitiesInput);
+    }
+
+    function drawNetworkGraph(res) {
+        let nodeIdMap = {};
+        res.topoOrder.forEach((oldId, index) => nodeIdMap[oldId] = index + 1);
+        let visNodes = res.topoOrder.map(oldId => {
+            let id = nodeIdMap[oldId], tw = res.TW[oldId], tp = res.TP[oldId], z = tp - tw, isCrit = (z === 0);
+            let color = isCrit ? '#e74c3c' : '#2c3e50';
+            let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">
+                <circle cx="40" cy="40" r="38" stroke="${color}" stroke-width="${isCrit ? '3' : '2'}" fill="#fff" />
+                <line x1="13.2" y1="13.2" x2="66.8" y2="66.8" stroke="${color}" stroke-width="${isCrit ? '2' : '1'}" />
+                <line x1="66.8" y1="13.2" x2="13.2" y2="66.8" stroke="${color}" stroke-width="${isCrit ? '2' : '1'}" />
+                <text x="40" y="26" font-size="14" font-family="sans-serif" font-weight="bold" text-anchor="middle" fill="${color}">${id}</text>
+                <text x="18" y="45" font-size="14" font-family="sans-serif" text-anchor="middle" fill="black">${tw}</text>
+                <text x="62" y="45" font-size="14" font-family="sans-serif" text-anchor="middle" fill="black">${tp}</text>
+                <text x="40" y="70" font-size="14" font-family="sans-serif" text-anchor="middle" fill="black">${z}</text>
+            </svg>`;
+            return { id: id, shape: 'image', image: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.trim()), size: 40 };
+        });
+
+        let visEdges = res.edges.map(e => {
+            let isCrit = (res.TW[e.from] === res.TP[e.from]) && (res.TW[e.to] === res.TP[e.to]) && (res.TW[e.from] + e.dur === res.TP[e.to]);
+            let edgeCol = isCrit ? '#e74c3c' : '#7f8c8d';
+            return {
+                from: nodeIdMap[e.from], to: nodeIdMap[e.to],
+                label: e.isDummy ? "" : `${e.label}(${e.dur})`,
+                font: { align: 'top', color: edgeCol, size: 16, background: 'rgba(255,255,255,0.8)' },
+                color: { color: edgeCol, highlight: '#c0392b' },
+                width: isCrit ? 3 : 1.5, dashes: e.isDummy ? [8, 8] : false, arrows: 'to',
+                smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.3 }
+            };
+        });
+
+        new vis.Network(document.getElementById('mynetwork'), { nodes: visNodes, edges: visEdges }, {
+            layout: { hierarchical: { direction: 'LR', sortMethod: 'directed', levelSeparation: 220, nodeSpacing: 100 } },
+            physics: false, interaction: { zoomSpeed: 0.3 }
+        });
+    }
+
+    function generateDetailedAnalysis(res, actsInput) {
+        let T1 = res.T1;
+        let criticalActs = Object.keys(res.actsData).filter(k => res.actsData[k].zc === 0).join(', ');
+        
+        let nonCriticalSlacks = Object.keys(res.actsData)
+            .filter(k => res.actsData[k].zc > 0)
+            .map(k => `Operacja <b>${k}</b> (ZC = ${res.actsData[k].zc}, ZS = ${res.actsData[k].zs})`)
+            .join('; ');
+        
+        // Pkt E - Symulacja wydłużenia
+        let extVal = parseInt(document.getElementById('sim-ext-val').value) || 2;
+        let extRes = parseInt(document.getElementById('sim-ext-res').value) || 1;
+        let actsExt = [];
+        actsInput.forEach(a => {
+            let clone = JSON.parse(JSON.stringify(actsInput));
+            clone.find(c => c.id === a.id).duration += extVal;
+            if(solveCPM(clone).T1 - T1 === extRes) actsExt.push(a.id);
+        });
+
+        // Pkt F - Symulacja skrócenia
+        let shrVal = parseInt(document.getElementById('sim-shr-val').value) || 2;
+        let shrRes = parseInt(document.getElementById('sim-shr-res').value) || 1;
+        let actsShr = [];
+        actsInput.forEach(a => {
+            let clone = JSON.parse(JSON.stringify(actsInput));
+            clone.find(c => c.id === a.id).duration = Math.max(0, a.duration - shrVal);
+            if(T1 - solveCPM(clone).T1 === shrRes) actsShr.push(a.id);
+        });
+
+        let html = `
+            <h3>II. Odpowiedzi analityczne:</h3>
+            <div class="analysis-card">
+                <p><b>A.</b> Najkrótszy czas trwania przedsięwzięcia (T1): <span class="highlight">${T1}</span> dni.</p>
+                <p><b>B.</b> Ścieżka krytyczna (operacje): <span class="highlight">${criticalActs}</span>.</p>
+                <p><b>C.</b> Zapasy czasu operacji niekrytycznych:<br> ${nonCriticalSlacks || "Brak operacji niekrytycznych."}</p>
+                <p><b>D.</b> Wszystkie ścieżki od startu do końca:</p>
+                <ul>
+                    ${res.paths.map(p => `<li>${p.path} (długość: ${p.len === T1 ? `<span class="highlight">${p.len} - KRYTYCZNA</span>` : p.len})</li>`).join('')}
+                </ul>
+                <p><b>E.</b> Operacje, których wydłużenie o ${extVal} dni spowoduje wydłużenie całości o ${extRes} dni: <span class="highlight">${actsExt.length > 0 ? actsExt.join(', ') : "Brak takich operacji"}</span>.</p>
+                <p><b>F.</b> Operacje, których skrócenie o ${shrVal} dni spowoduje skrócenie całości o ${shrRes} dni: <span class="highlight">${actsShr.length > 0 ? actsShr.join(', ') : "Brak takich operacji"}</span>.</p>
+            </div>
+        `;
+
+        html += `
+            <h3>G & H. Harmonogram (Wczesne Starty) i Wykres Zatrudnienia</h3>
+            <div class="instructions">Ułożenie zadań według <b>Najwcześniejszego Terminu Rozpoczęcia (NWR)</b>. Czerwony = Ścieżka Krytyczna. Paski na dole oznaczają zapas swobodny.</div>
+            <div class="gantt-container">${generateGantt(res, T1, 'early')}</div>
+        `;
+
+        html += `
+            <h3>I. Harmonogram (Późne Starty)</h3>
+            <div class="instructions">Ułożenie zadań według <b>Najpóźniejszego Terminu Rozpoczęcia (NPR)</b> niepowodującego wydłużenia czasu T1.</div>
+            <div class="gantt-container">${generateGantt(res, T1, 'late')}</div>
+        `;
+
+        document.getElementById('analysisResults').innerHTML = html;
+    }
+
+    function generateGantt(res, T1, type) {
+        let acts = Object.keys(res.actsData).sort(); // Sortuj alfabetycznie
+        let workersPerDay = new Array(T1).fill(0);
+        
+        let html = `<table class="gantt-table"><tr><th class="task-name">Zad.</th>`;
+        for(let i=1; i<=T1; i++) html += `<th>${i}</th>`;
+        html += `</tr>`;
+
+        acts.forEach(id => {
+            let a = res.actsData[id];
+            let startDay = (type === 'early') ? a.nwr : a.npr;
+            let endDay = (type === 'early') ? a.nwz : a.npz;
+            
+            html += `<tr><td class="task-name">${id}</td>`;
+            for(let day=0; day<T1; day++) {
+                if(day >= startDay && day < endDay) {
+                    html += `<td><div class="gantt-bar ${a.zc===0 ? 'critical' : ''}"></div></td>`;
+                    workersPerDay[day] += a.workers; // Zliczanie pracowników
+                } else if(type==='early' && a.zc > 0 && day >= a.nwz && day < (a.nwz + a.zs)) {
+                    // Pokaż zapas swobodny na wykresie wczesnym
+                    html += `<td><div class="gantt-bar slack" title="Zapas swobodny"></div></td>`;
+                } else {
+                    html += `<td></td>`;
+                }
+            }
+            html += `</tr>`;
+        });
+
+        // Wiersz Histogramu Pracowników (Tylko dla wykresu wczesnego zgodnie z poleceniem H)
+        if(type === 'early') {
+            html += `<tr class="histogram-row"><td class="task-name" style="font-size: 10px;">Pracownicy</td>`;
+            workersPerDay.forEach(w => {
+                html += `<td>${w > 0 ? w : ''}</td>`;
+            });
+            html += `</tr>`;
+        }
+        
+        html += `</table>`;
+        return html;
     }
 </script>
 
