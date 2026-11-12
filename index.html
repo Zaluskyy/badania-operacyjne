@@ -136,7 +136,7 @@
             border-radius: 5px;
             transition: background-color 0.2s;
             color: white;
-            flex-grow: 1; /* Przyciski rozciągają się ładnie na telefonach */
+            flex-grow: 1;
         }
         .btn-add { background-color: #27ae60; }
         .btn-add:hover { background-color: #219653; }
@@ -149,10 +149,9 @@
             border: 1px solid #e1e8ed;
             border-radius: 5px;
             background-color: #ffffff;
-            touch-action: pan-y pinch-zoom; /* Lepsze zachowanie na telefonie */
+            touch-action: pan-y pinch-zoom;
         }
 
-        /* Usprawnienia na małe ekrany */
         @media (max-width: 600px) {
             .actions { flex-direction: column; }
             #mynetwork { height: 350px; }
@@ -167,7 +166,8 @@
     <div class="instructions">
         Wskazówki:<br>
         - Klawisz <b>Tab</b> przenosi kursor w dół kolumny.<br>
-        - Separator poprzedników: dowolny (np. <b>d, e</b> lub <b>d,e</b> lub <b>d;e</b>). Puste pole lub <b>-</b> oznacza brak poprzednika.<br>
+        - Separator poprzedników: dowolny (np. <b>d, e</b> lub <b>d;e</b>). Puste pole lub <b>-</b> oznacza brak.<br>
+        - <b>Wielkość liter nie ma znaczenia</b> (A = a).<br>
         - Kliknij przycisk <b>[X]</b> obok litery operacji, aby wykluczyć ją z obliczeń.
     </div>
 
@@ -292,8 +292,9 @@
         
         rows.forEach(tr => {
             if(!tr.classList.contains('disabled-row')) {
-                let id = tr.querySelector('.inp-id').value.trim();
-                let predsRaw = tr.querySelector('.inp-preds').value.trim();
+                // Dodano toLowerCase() aby wielkość liter nie miała znaczenia
+                let id = tr.querySelector('.inp-id').value.trim().toLowerCase();
+                let predsRaw = tr.querySelector('.inp-preds').value.trim().toLowerCase();
                 let timeRaw = tr.querySelector('.inp-time').value.trim();
                 
                 if(id === '' || timeRaw === '') return; 
@@ -301,7 +302,6 @@
                 let time = parseInt(timeRaw) || 0;
                 let predsArray = [];
                 
-                // Inteligentne rozdzielanie poprzedników: ignoruje '-' i puste pola, akceptuje , lub ; jako separator
                 if(predsRaw !== '' && predsRaw !== '-') {
                     predsArray = predsRaw.split(/[;,]+/).map(s => s.trim()).filter(s => s !== '');
                 }
