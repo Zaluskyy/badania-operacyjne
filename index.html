@@ -2,153 +2,334 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generator Sieci Łukowej (AoA) CPM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Generator Sieci Łukowej (AoA) - Arkusz CPM</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 20px;
+            margin: 0;
+            padding: 15px;
             background-color: #f0f2f5;
             color: #333;
         }
         .container {
-            max-width: 1100px;
+            max-width: 1200px;
             margin: 0 auto;
             background: #fff;
-            padding: 25px;
+            padding: 20px;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
-        h2 { margin-top: 0; color: #1a252f; }
-        .input-group {
+        h2 { margin-top: 0; color: #1a252f; margin-bottom: 15px; font-size: 22px; }
+        
+        .instructions {
+            font-size: 13px;
+            color: #7f8c8d;
             margin-bottom: 15px;
-            display: flex;
-            align-items: center;
+            line-height: 1.4;
         }
-        .input-group label {
-            width: 220px;
-            font-weight: 600;
-        }
-        .input-group input {
-            flex-grow: 1;
-            padding: 10px;
-            border: 1px solid #ced4da;
-            border-radius: 5px;
-            font-size: 15px;
-        }
-        button {
-            padding: 12px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            background-color: #2c3e50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            transition: background-color 0.2s;
-        }
-        button:hover { background-color: #1a252f; }
-        #mynetwork {
+
+        /* Kontener tabeli umożliwiający scrollowanie na telefonach */
+        .table-responsive {
             width: 100%;
-            height: 500px;
-            border: 1px solid #e1e8ed;
-            margin-top: 25px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 20px;
             border-radius: 5px;
-            background-color: #ffffff;
+            border: 1px solid #ced4da;
         }
+        
         table {
             width: 100%;
+            min-width: 750px; /* Zapobiega zgnieceniu kolumn na małych ekranach */
             border-collapse: collapse;
-            margin-top: 25px;
             background-color: #fff;
         }
         th, td {
             border: 1px solid #ced4da;
-            padding: 12px;
             text-align: center;
+            padding: 0;
+            position: relative;
+            height: 44px; /* Optymalna wysokość dla dotyku na smartfonach */
         }
         th {
             background-color: #2c3e50;
             color: white;
+            padding: 10px 5px;
+            font-size: 14px;
         }
-        .critical-row {
-            background-color: #ffe0e0;
+        input {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            border: none;
+            padding: 10px 5px;
+            font-size: 15px;
+            text-align: center;
+            background: transparent;
+            outline: none;
+        }
+        input:focus {
+            background-color: #e8f4fd;
+            box-shadow: inset 0 0 0 2px #3498db;
+        }
+        
+        .readonly-cell {
+            background-color: #e9ecef;
+            color: #6c757d;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+        
+        .disabled-row input {
+            color: #adb5bd;
+            text-decoration: line-through;
+            background-color: #f8f9fa;
+        }
+        .disabled-row .readonly-cell {
+            color: #adb5bd;
+            text-decoration: none;
+        }
+        
+        .toggle-btn {
+            position: absolute;
+            left: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #e74c3c;
             font-weight: bold;
+            font-size: 11px;
+            user-select: none;
+            background: #ffe0e0;
+            padding: 4px 6px;
+            border-radius: 3px;
+            z-index: 2;
+        }
+        .disabled-row .toggle-btn {
+            color: #27ae60;
+            background: #e0f8e9;
+        }
+
+        .critical-row { background-color: #ffe0e0 !important; }
+        .critical-row input, .critical-row .readonly-cell {
             color: #c0392b;
+            font-weight: bold;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 14px 20px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+            color: white;
+            flex-grow: 1; /* Przyciski rozciągają się ładnie na telefonach */
+        }
+        .btn-add { background-color: #27ae60; }
+        .btn-add:hover { background-color: #219653; }
+        .btn-generate { background-color: #3498db; }
+        .btn-generate:hover { background-color: #2980b9; }
+
+        #mynetwork {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #e1e8ed;
+            border-radius: 5px;
+            background-color: #ffffff;
+            touch-action: pan-y pinch-zoom; /* Lepsze zachowanie na telefonie */
+        }
+
+        /* Usprawnienia na małe ekrany */
+        @media (max-width: 600px) {
+            .actions { flex-direction: column; }
+            #mynetwork { height: 350px; }
+            h2 { font-size: 20px; }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Kreator Sieci Łukowej (AoA) z tabelą CPM</h2>
-    
-    <div class="input-group">
-        <label>Operacje:</label>
-        <input type="text" id="ops" value="a, b, c, d, e, f, g">
-    </div>
-    <div class="input-group">
-        <label>Poprzednicy (- to brak):</label>
-        <input type="text" id="preds" value="-, a, b, a, -, d;e, e">
-    </div>
-    <div class="input-group">
-        <label>Czas trwania:</label>
-        <input type="text" id="durations" value="5, 2, 3, 3, 7, 4, 6">
+    <h2>Interaktywny Arkusz CPM</h2>
+    <div class="instructions">
+        Wskazówki:<br>
+        - Klawisz <b>Tab</b> przenosi kursor w dół kolumny.<br>
+        - Separator poprzedników: dowolny (np. <b>d, e</b> lub <b>d,e</b> lub <b>d;e</b>). Puste pole lub <b>-</b> oznacza brak poprzednika.<br>
+        - Kliknij przycisk <b>[X]</b> obok litery operacji, aby wykluczyć ją z obliczeń.
     </div>
 
-    <button onclick="drawNetwork()">Generuj Sieć i Tabelę</button>
+    <div class="table-responsive">
+        <table id="cpmTable">
+            <thead>
+                <tr>
+                    <th style="width: 14%;">Operacja</th>
+                    <th style="width: 16%;">Poprzednik</th>
+                    <th style="width: 10%;">Czas</th>
+                    <th style="width: 10%;">NWR</th>
+                    <th style="width: 10%;">NWZ</th>
+                    <th style="width: 10%;">NPR</th>
+                    <th style="width: 10%;">NPZ</th>
+                    <th style="width: 10%;">ZC</th>
+                    <th style="width: 10%;">ZS</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- Wiersze generowane na start -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions">
+        <button class="btn-add" onclick="addRow()">+ Dodaj operację</button>
+        <button class="btn-generate" onclick="calculateAndDraw()">Generuj Sieć i Przelicz</button>
+    </div>
 
     <div id="mynetwork"></div>
-
-    <table id="cpmTable">
-        <thead>
-            <tr>
-                <th>Operacja</th>
-                <th>Poprzednik</th>
-                <th>Czas</th>
-                <th>NWR</th>
-                <th>NWZ</th>
-                <th>NPR</th>
-                <th>NPZ</th>
-                <th>ZC</th>
-                <th>ZS</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Wiersze zostaną dodane przez JavaScript -->
-        </tbody>
-    </table>
 </div>
 
 <script>
-    function drawNetwork() {
-        const ops = document.getElementById('ops').value.split(',').map(s => s.trim());
-        const predsInput = document.getElementById('preds').value.split(',').map(s => s.trim());
-        const durations = document.getElementById('durations').value.split(',').map(s => parseInt(s.trim()));
+    let initialData = [
+        { id: 'a', preds: '', time: '' },
+        { id: 'b', preds: '', time: '' },
+        { id: 'c', preds: '', time: '' },
+        { id: 'd', preds: '', time: '' },
+        { id: 'e', preds: '', time: '' },
+        { id: 'f', preds: '', time: '' },
+        { id: 'g', preds: '', time: '' }
+    ];
 
-        if(ops.length !== predsInput.length || ops.length !== durations.length) {
-            alert("Błąd: Liczba elementów w polach się nie zgadza!");
+    let nextCharCode = 'h'.charCodeAt(0);
+
+    window.onload = () => {
+        const tbody = document.getElementById('tableBody');
+        initialData.forEach(row => appendRowHtml(tbody, row.id, row.preds, row.time));
+        updateTabIndexes();
+    };
+
+    function appendRowHtml(tbody, id, preds, time) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <span class="toggle-btn" onclick="toggleRow(this)" title="Aktywuj/Dezaktywuj">[X]</span>
+                <input type="text" class="inp-id" value="${id}" oninput="clearResults()">
+            </td>
+            <td><input type="text" class="inp-preds" value="${preds}" oninput="clearResults()"></td>
+            <td><input type="text" class="inp-time" value="${time}" inputmode="numeric" oninput="clearResults()"></td>
+            <td><div class="readonly-cell out-nwr"></div></td>
+            <td><div class="readonly-cell out-nwz"></div></td>
+            <td><div class="readonly-cell out-npr"></div></td>
+            <td><div class="readonly-cell out-npz"></div></td>
+            <td><div class="readonly-cell out-zc"></div></td>
+            <td><div class="readonly-cell out-zs"></div></td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function addRow() {
+        const tbody = document.getElementById('tableBody');
+        const char = String.fromCharCode(nextCharCode++);
+        appendRowHtml(tbody, char, '', '');
+        updateTabIndexes();
+        clearResults();
+    }
+
+    function updateTabIndexes() {
+        const rows = document.querySelectorAll('#tableBody tr');
+        const N = rows.length;
+        
+        rows.forEach((tr, index) => {
+            const idInput = tr.querySelector('.inp-id');
+            const predsInput = tr.querySelector('.inp-preds');
+            const timeInput = tr.querySelector('.inp-time');
+            
+            idInput.setAttribute('tabindex', index + 1);
+            predsInput.setAttribute('tabindex', N + index + 1);
+            timeInput.setAttribute('tabindex', 2 * N + index + 1);
+        });
+    }
+
+    function toggleRow(btn) {
+        const tr = btn.closest('tr');
+        tr.classList.toggle('disabled-row');
+        if(tr.classList.contains('disabled-row')) {
+            btn.innerText = '[✓]';
+        } else {
+            btn.innerText = '[X]';
+        }
+        clearResults();
+    }
+
+    function clearResults() {
+        const rows = document.querySelectorAll('#tableBody tr');
+        rows.forEach(tr => {
+            tr.classList.remove('critical-row');
+            tr.querySelector('.out-nwr').innerText = '';
+            tr.querySelector('.out-nwz').innerText = '';
+            tr.querySelector('.out-npr').innerText = '';
+            tr.querySelector('.out-npz').innerText = '';
+            tr.querySelector('.out-zc').innerText = '';
+            tr.querySelector('.out-zs').innerText = '';
+        });
+        document.getElementById('mynetwork').innerHTML = '';
+    }
+
+    function calculateAndDraw() {
+        let activities = [];
+        const rows = document.querySelectorAll('#tableBody tr');
+        
+        rows.forEach(tr => {
+            if(!tr.classList.contains('disabled-row')) {
+                let id = tr.querySelector('.inp-id').value.trim();
+                let predsRaw = tr.querySelector('.inp-preds').value.trim();
+                let timeRaw = tr.querySelector('.inp-time').value.trim();
+                
+                if(id === '' || timeRaw === '') return; 
+                
+                let time = parseInt(timeRaw) || 0;
+                let predsArray = [];
+                
+                // Inteligentne rozdzielanie poprzedników: ignoruje '-' i puste pola, akceptuje , lub ; jako separator
+                if(predsRaw !== '' && predsRaw !== '-') {
+                    predsArray = predsRaw.split(/[;,]+/).map(s => s.trim()).filter(s => s !== '');
+                }
+                
+                activities.push({
+                    id: id,
+                    duration: time,
+                    preds: predsArray,
+                    domRow: tr 
+                });
+            }
+        });
+
+        if(activities.length === 0) {
+            alert("Wprowadź poprawne dane przed wygenerowaniem wykresu!");
             return;
         }
 
-        let activities = ops.map((op, i) => ({
-            id: op,
-            duration: durations[i],
-            preds: predsInput[i] === '-' ? [] : predsInput[i].split(';').map(s => s.trim()),
-            rawPreds: predsInput[i]
-        }));
-
-        // 1. Zmienne do budowy grafu zdarzeń (AoA)
         let eventCounter = 1;
         let actEndEvent = {}; 
         activities.forEach(a => actEndEvent[a.id] = eventCounter++);
 
-        // 2. Grupowanie operacji posiadających IDENTYCZNYCH poprzedników
         let groups = {};
         activities.forEach(a => {
-            let predStr = [...a.preds].sort().join(',');
-            if (!groups[predStr]) groups[predStr] = { preds: [...a.preds], acts: [] };
+            let validPreds = a.preds.filter(p => activities.find(act => act.id === p));
+            let predStr = validPreds.sort().join(',');
+            
+            if (!groups[predStr]) groups[predStr] = { preds: validPreds, acts: [] };
             groups[predStr].acts.push(a.id);
         });
 
@@ -160,7 +341,6 @@
         let edges = [];
         let actStartEvent = {};
 
-        // 3. Łączenie węzłów i generowanie operacji pozornych
         Object.values(groups).forEach(g => {
             let startEvent;
             if (g.preds.length === 0) {
@@ -186,7 +366,6 @@
             g.acts.forEach(actId => actStartEvent[actId] = startEvent);
         });
 
-        // 4. Zbieranie "luźnych" zakończeń do jednego węzła końcowego projektu
         let isPredecessor = {};
         Object.values(groups).forEach(g => g.preds.forEach(p => isPredecessor[p] = true));
         let endProjectEvent = eventCounter++;
@@ -202,7 +381,6 @@
         edges.forEach(e => { nodesSet.add(e.from); nodesSet.add(e.to); });
         let nodesArray = Array.from(nodesSet).sort((a,b) => a-b);
 
-        // 5. Wyliczanie terminów zdarzeń (TW i TP)
         let inDegree = {}; let adj = {};
         nodesArray.forEach(n => { inDegree[n] = 0; adj[n] = []; });
         edges.forEach(e => {
@@ -222,7 +400,6 @@
             });
         }
 
-        // TW
         let TW = {};
         nodesArray.forEach(n => TW[n] = 0);
         topoOrder.forEach(u => {
@@ -233,7 +410,6 @@
 
         let projectDuration = Math.max(...Object.values(TW));
 
-        // TP
         let TP = {};
         nodesArray.forEach(n => TP[n] = projectDuration);
         let reverseTopo = [...topoOrder].reverse();
@@ -247,10 +423,6 @@
             });
         });
 
-        // 6. GENEROWANIE TABELI DANYCH CPM
-        const tbody = document.querySelector("#cpmTable tbody");
-        tbody.innerHTML = ""; // Czyszczenie starych wyników
-
         activities.forEach(a => {
             let from = actStartEvent[a.id];
             let to = actEndEvent[a.id];
@@ -259,27 +431,21 @@
             let nwz = nwr + a.duration;
             let npz = TP[to];
             let npr = npz - a.duration;
-            let zc = npz - nwz; // Zapas całkowity
-            let zs = TW[to] - nwz; // Zapas swobodny
+            let zc = npz - nwz;
+            let zs = TW[to] - nwz;
 
-            let trClass = zc === 0 ? 'class="critical-row"' : '';
+            if (zc === 0) {
+                a.domRow.classList.add('critical-row');
+            }
 
-            tbody.innerHTML += `
-                <tr ${trClass}>
-                    <td>${a.id}</td>
-                    <td>${a.rawPreds}</td>
-                    <td>${a.duration}</td>
-                    <td>${nwr}</td>
-                    <td>${nwz}</td>
-                    <td>${npr}</td>
-                    <td>${npz}</td>
-                    <td>${zc}</td>
-                    <td>${zs}</td>
-                </tr>
-            `;
+            a.domRow.querySelector('.out-nwr').innerText = nwr;
+            a.domRow.querySelector('.out-nwz').innerText = nwz;
+            a.domRow.querySelector('.out-npr').innerText = npr;
+            a.domRow.querySelector('.out-npz').innerText = npz;
+            a.domRow.querySelector('.out-zc').innerText = zc;
+            a.domRow.querySelector('.out-zs').innerText = zs;
         });
 
-        // 7. Przygotowanie danych grafu (Vis.js)
         let nodeIdMap = {};
         topoOrder.forEach((oldId, index) => nodeIdMap[oldId] = index + 1);
 
@@ -330,15 +496,15 @@
 
         const data = { nodes: new vis.DataSet(visNodes), edges: new vis.DataSet(visEdges) };
         const container = document.getElementById('mynetwork');
+        
         const options = {
             layout: { hierarchical: { direction: 'LR', sortMethod: 'directed', levelSeparation: 220, nodeSpacing: 100 } },
-            physics: false
+            physics: false,
+            interaction: { zoomSpeed: 0.3 }
         };
 
         new vis.Network(container, data, options);
     }
-
-    window.onload = drawNetwork;
 </script>
 
 </body>
