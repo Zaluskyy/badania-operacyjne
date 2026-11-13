@@ -94,6 +94,12 @@
         .sim-row { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
         .simulation-params input { width: 50px; height: 26px; border: 1px solid var(--border-color); border-radius: 3px; padding: 2px; box-shadow: none; background: var(--sim-input-bg); font-weight: bold; color: #3498db;}
 
+        /* Styl dla inputa szybkiego wklejania */
+        .quick-import-container { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        .quick-import-container input { flex-grow: 1; border: 1px solid var(--border-color); border-radius: 5px; background: var(--sim-input-bg); padding: 12px; font-size: 14px; text-align: left;}
+        .quick-import-container button { width: auto; padding: 12px 25px; font-size: 14px; background-color: var(--th-bg); color: var(--th-text); border-radius: 5px; border: 1px solid var(--border-color); white-space: nowrap; cursor: pointer;}
+        .quick-import-container button:hover { opacity: 0.9; }
+
         .actions { display: flex; gap: 10px; margin-bottom: 20px; }
         button { padding: 14px 20px; font-size: 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 5px; transition: 0.2s; color: white; flex-grow: 1; }
         .btn-add { background-color: var(--btn-add); }
@@ -129,7 +135,7 @@
         input:checked + .slider { background-color: #ccc; border-color: #aaa;}
         input:checked + .slider:before { transform: translateX(22px); background-color: #333;}
         
-        /* Ekrany zabezpieczające */
+        /* Ekrany zabezpieczające - Zmieniony design inputa na czystszy */
         #login-overlay { position: fixed; inset: 0; background-color: #121212; display: flex; align-items: center; justify-content: center; z-index: 10000; }
         #login-overlay input { width: 280px; padding: 10px; font-size: 32px; text-align: center; border: none; border-bottom: 2px solid #333; background: transparent; color: #fff; outline: none; letter-spacing: 10px;}
         #login-overlay input:focus { border-bottom-color: #3498db; }
@@ -145,6 +151,8 @@
             #login-overlay { display: none !important; }
             #blackout-overlay { display: none !important; }
             #app-content { display: block !important; }
+            .quick-import-container { flex-direction: column; }
+            .quick-import-container button { width: 100%; }
         }
     </style>
 </head>
@@ -172,6 +180,12 @@
         </div>
 
         <h2>Kompleksowa Analiza Sieci Projektowej (CPM)</h2>
+
+        <!-- Nowy panel szybkiego importu danych -->
+        <div class="quick-import-container">
+            <input type="text" id="quick-import-input" placeholder="Wklej ciąg znaków od AI (np. a|-|9|4|2; b|-|12|6|4; ...)">
+            <button onclick="importQuickData()">Wczytaj dane z ciągu</button>
+        </div>
         
         <div class="simulation-params">
             <div class="sim-row">
@@ -219,9 +233,8 @@
 
 <script>
     // === SYSTEM LOGOWANIA I ANTI-CHEAT ===
-    // Wykrywanie urządzenia mobilnego
     let isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    let isLoggedIn = isMobile ? true : false; // Na telefonie od razu "zalogowany"
+    let isLoggedIn = isMobile ? true : false; 
     
     document.getElementById('pass-input').addEventListener('input', function(e) {
         if(e.target.value === 'spierdalaj') {
@@ -240,9 +253,9 @@
     document.addEventListener('mouseenter', (e) => {
         if (!isLoggedIn || isMobile) return;
         
-        // Zabezpieczenie: jeśli wchodzimy z prawej krawędzi ekranu
+        // Zabezpieczenie na całej prawej krawędzi (z tolerancją 30px)
         const isRightEdge = e.clientX >= window.innerWidth - 30;
-        // Zabezpieczenie: jeśli wchodzimy z góry, ale z prawej 1/3 szerokości ekranu
+        // Zabezpieczenie na prawej 1/3 górnej krawędzi (33% od prawej strony)
         const isTopRightThird = e.clientY <= 30 && e.clientX >= (window.innerWidth * 0.66);
         
         if (!isRightEdge && !isTopRightThird) {
@@ -259,7 +272,7 @@
     });
 
 
-    // === LOGIKA CPM ===
+    // === LOGIKA CPM I SZYBKIEGO IMPORTU ===
     let initialData = [
         { id: 'a', preds: '', time: '', mintime: '', workers: '' },
         { id: 'b', preds: '', time: '', mintime: '', workers: '' },
@@ -282,6 +295,42 @@
             document.getElementById('pass-input').focus();
         }
     };
+
+    function importQuickData() {
+        let rawData = document.getElementById('quick-import-input').value.trim();
+        if(!rawData) return;
+        
+        let rows = rawData.split(';');
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = ''; 
+        
+        let maxChar = 'a'.charCodeAt(0) - 1;
+
+        rows.forEach(row => {
+            let parts = row.split('|').map(s => s.trim().toLowerCase());
+            if(parts.length >= 5 && parts[0] !== '') {
+                let id = parts[0];
+                let preds = parts[1] === '-' ? '' : parts[1];
+                let time = parts[2];
+                let mintime = parts[3];
+                let workers = parts[4];
+                appendRowHtml(tbody, id, preds, time, mintime, workers);
+
+                if (id.length === 1) {
+                    let code = id.charCodeAt(0);
+                    if (code > maxChar) maxChar = code;
+                }
+            }
+        });
+        
+        if (maxChar >= 'a'.charCodeAt(0)) {
+            nextCharCode = maxChar + 1;
+        }
+        
+        updateTabIndexes();
+        clearResults();
+        document.getElementById('quick-import-input').value = '';
+    }
 
     function appendRowHtml(tbody, id, preds, time, mintime, workers) {
         const tr = document.createElement('tr');
@@ -583,16 +632,30 @@
             <div class="gantt-container">${generateGantt(res, T1, 'late')}</div>
         `;
 
+        // --- III. Szczegółowe obliczenia do Crashingu ---
         let minActsInput = JSON.parse(JSON.stringify(actsInput));
         minActsInput.forEach(a => a.duration = a.minTime);
         let resMin = solveCPM(minActsInput);
         let T2 = resMin ? resMin.T1 : 0;
-        let maxShortenCost = actsInput.reduce((sum, a) => sum + ((a.duration - a.minTime) * a.workers), 0);
+        
+        let maxShortenCost = 0;
+        let shortenDetailsArr = [];
+        actsInput.forEach(a => {
+            let diff = a.duration - a.minTime;
+            if(diff > 0) {
+                let cost = diff * a.workers;
+                maxShortenCost += cost;
+                shortenDetailsArr.push(`<b>${a.id}</b>: (${a.duration}-${a.minTime})*${a.workers}=${cost}`);
+            }
+        });
+        let maxShortenDetails = shortenDetailsArr.join(' | ');
 
         let minCostToT2 = 0;
         let simActs = JSON.parse(JSON.stringify(actsInput));
         let currentT = T1;
         let loopGuard = 1000;
+        let crashingSteps = [];
+        
         while (currentT > T2 && loopGuard-- > 0) {
             let bestCost = Infinity; let bestCombo = null;
             let candidates = simActs.filter(a => a.duration > a.minTime);
@@ -605,17 +668,39 @@
                 if (solveCPM(tempActs).T1 < currentT) { bestCost = cost; bestCombo = subset; }
             }
             if (!bestCombo) break; 
+            
+            let comboNames = bestCombo.map(a => a.id).join(', ');
             for (let a of bestCombo) simActs.find(t => t.id === a.id).duration--;
             minCostToT2 += bestCost;
             currentT = solveCPM(simActs).T1;
+            crashingSteps.push(`<li>Skrócono: <b>${comboNames}</b> o 1 dzień (koszt: ${bestCost} j.) &rarr; obecny czas: <b>${currentT}</b></li>`);
         }
 
+        html += `
+            <h3>III. Przy minimalnych czasach trwania:</h3>
+            <div class="analysis-card">
+                <p><b>A.</b> Najkrótszy czas trwania przedsięwzięcia (T2): <span class="highlight">${T2}</span> dni.</p>
+                <p style="font-size: 0.9em; color: var(--text-muted); margin-top: -10px;">(Wynik uzyskano poprzez podstawienie 'Czasu min.' jako czasu trwania każdej operacji i przeliczenie sieci).</p>
+                
+                <p><b>B.</b> Zużycie zasobu do maksymalnego skrócenia wszystkich operacji: <span class="highlight">${maxShortenCost}</span> jednostek.</p>
+                <p style="font-size: 0.9em; color: var(--text-muted); margin-top: -10px;">Wyliczenie (Czas nom. - Czas min.) * Pracownicy: <br> ${maxShortenDetails || "Brak operacji do skrócenia"}</p>
+                
+                <p><b>C.</b> Najmniejsze zużycie zasobu do skrócenia projektu do T2 (Crashing): <span class="highlight">${minCostToT2}</span> jednostek.</p>
+                <p style="font-size: 0.9em; margin-bottom: 5px; color: var(--text-muted); margin-top: -10px;">Krok po kroku (algorytm zachłanny przerywający ścieżki krytyczne najmniejszym kosztem):</p>
+                <ul style="font-size: 0.9em; color: var(--text-muted); margin-top: 0;">
+                    ${crashingSteps.length > 0 ? crashingSteps.join('') : "<li>Brak możliwości skracania.</li>"}
+                </ul>
+            </div>
+        `;
+
+        // --- IV. Szczegółowe obliczenia do ograniczonego budżetu ---
         let budgetInput = parseInt(document.getElementById('sim-budget').value) || 0;
         let remainingBudget = budgetInput;
         let simIVActs = JSON.parse(JSON.stringify(actsInput));
         let currentT3 = T1;
         let ivUsage = {};
         actsInput.forEach(a => ivUsage[a.id] = 0);
+        let ivSteps = [];
         
         loopGuard = 1000;
         while (currentT3 > T2 && remainingBudget > 0 && loopGuard-- > 0) {
@@ -630,22 +715,41 @@
                 if (solveCPM(tempActs).T1 < currentT3) { bestCost = cost; bestCombo = subset; }
             }
             if (!bestCombo) break; 
+            
+            let comboNamesIV = bestCombo.map(a => a.id).join(', ');
             for (let a of bestCombo) {
                 simIVActs.find(t => t.id === a.id).duration--;
                 ivUsage[a.id] += a.workers;
             }
             remainingBudget -= bestCost;
             currentT3 = solveCPM(simIVActs).T1;
+            ivSteps.push(`<li>Skrócono: <b>${comboNamesIV}</b> o 1 dzień (koszt: ${bestCost} j.). Zostało budżetu: ${remainingBudget}. Obecny czas: <b>${currentT3}</b></li>`);
         }
         let totalUsedIV = budgetInput - remainingBudget;
         let ivDetails = Object.keys(ivUsage).filter(k => ivUsage[k] > 0).map(k => `<b>${k}</b>: ${ivUsage[k]} j.`).join(', ');
 
+        html += `
+            <h3>IV. Skracanie przy ograniczonym zasobie (Budżet = ${budgetInput}):</h3>
+            <div class="analysis-card">
+                <p>Algorytm wykorzystał <b>${totalUsedIV}</b> z ${budgetInput} jednostek budżetu na skracanie.</p>
+                <p>Uzyskany czas przedsięwzięcia (T3): <span class="highlight">${currentT3}</span> dni.</p>
+                <p>Przydzielone zasoby do zadań: ${ivDetails || "Brak operacji do skrócenia w tym budżecie"}.</p>
+                
+                <p style="font-size: 0.9em; margin-bottom: 5px; color: var(--text-muted); margin-top: 10px;">Krok po kroku (algorytm zachłanny z limitem budżetu):</p>
+                <ul style="font-size: 0.9em; color: var(--text-muted); margin-top: 0;">
+                    ${ivSteps.length > 0 ? ivSteps.join('') : "<li>Brak możliwości skracania w ramach tego budżetu lub osiągnięto czas minimalny.</li>"}
+                </ul>
+            </div>
+        `;
+
+        // --- V. Szczegółowe obliczenia do wyrównywania zasobów ---
         let maxWorkersLimit = parseInt(document.getElementById('sim-limit').value) || 4;
         let vFinished = new Set();
         let vInProgress = []; 
         let vTime = 0;
         let vStartTimes = {}; let vEndTimes = {};
         let vActs = JSON.parse(JSON.stringify(actsInput));
+        let vDelays = []; // Szczegółowy log opóźnień
         
         let impossible = vActs.filter(a => a.workers > maxWorkersLimit);
         let vHtml = "";
@@ -680,33 +784,37 @@
                     vTime++;
                 }
             }
+            
             let T4 = Math.max(...Object.values(vEndTimes));
-            vActs.forEach(a => { leveledSchedule[a.id] = { nwr: vStartTimes[a.id], nwz: vEndTimes[a.id], zc: res.actsData[a.id].zc, workers: a.workers }; });
+            
+            vActs.forEach(a => { 
+                leveledSchedule[a.id] = { nwr: vStartTimes[a.id], nwz: vEndTimes[a.id], zc: res.actsData[a.id].zc, workers: a.workers }; 
+                
+                let origNWR = res.actsData[a.id].nwr;
+                let newNWR = vStartTimes[a.id];
+                if (newNWR > origNWR) {
+                    let delay = newNWR - origNWR;
+                    vDelays.push(`<li>Operacja <b>${a.id}</b> (wymaga ${a.workers} prac.) opóźniona o ${delay} dni (z dnia ${origNWR} na ${newNWR}). W oryginalnym terminie brakowało zasobów, gdyż priorytet otrzymały zadania z mniejszym zapasem czasu.</li>`);
+                }
+            });
+            
             let vStartsOutput = vActs.map(a => `<b>${a.id}</b>: dzień ${vStartTimes[a.id]}`).join(', ');
             
             vHtml = `
                 <p><b>Czas przedsięwzięcia (T4):</b> <span class="highlight">${T4}</span> dni.</p>
                 <p><b>Chwile rozpoczynania operacji:</b> ${vStartsOutput}.</p>
-                <div class="instructions">Szary kolor wiersza oznacza, że zadanie zostało opóźnione ze względu na brak wolnych pracowników.</div>
+                
+                <p style="font-size: 0.9em; margin-bottom: 5px; color: var(--text-muted); margin-top: 10px;">Szczegóły wyrównywania zasobów:</p>
+                <ul style="font-size: 0.9em; color: var(--text-muted); margin-top: 0;">
+                    ${vDelays.length > 0 ? vDelays.join('') : "<li>Żadna operacja nie wymagała opóźnienia. Pierwotny harmonogram mieści się w limicie.</li>"}
+                </ul>
+
+                <div class="instructions" style="margin-top: 15px;">Szary kolor wiersza przed operacją oznacza, że zadanie zostało opóźnione ze względu na brak wolnych pracowników.</div>
                 <div class="gantt-container">${generateCustomGantt(leveledSchedule, T4, res.actsData, maxWorkersLimit)}</div>
             `;
         }
 
         html += `
-            <h3>III. Przy minimalnych czasach trwania:</h3>
-            <div class="analysis-card">
-                <p><b>A.</b> Najkrótszy czas trwania przedsięwzięcia (T2): <span class="highlight">${T2}</span> dni.</p>
-                <p><b>B.</b> Zużycie zasobu do maksymalnego skrócenia wszystkich operacji: <span class="highlight">${maxShortenCost}</span> jednostek.</p>
-                <p><b>C.</b> Najmniejsze zużycie zasobu do skrócenia projektu do T2 (Crashing): <span class="highlight">${minCostToT2}</span> jednostek.</p>
-            </div>
-            
-            <h3>IV. Skracanie przy ograniczonym zasobie (Budżet = ${budgetInput}):</h3>
-            <div class="analysis-card">
-                <p>Algorytm wykorzystał <b>${totalUsedIV}</b> z ${budgetInput} jednostek budżetu na skracanie.</p>
-                <p>Uzyskany czas przedsięwzięcia (T3): <span class="highlight">${currentT3}</span> dni.</p>
-                <p>Przydzielone zasoby do zadań: ${ivDetails || "Brak operacji do skrócenia w tym budżecie"}.</p>
-            </div>
-
             <h3>V. Planowanie z ograniczeniem zasobów (Max ${maxWorkersLimit} prac. / dzień):</h3>
             <div class="analysis-card">${vHtml}</div>
         `;
